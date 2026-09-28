@@ -1,0 +1,313 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.yaml:snakeyaml:2.5'
+    }
+}
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'org.zalava.modules'
+
+// module-metadata.yaml is the single source of truth for the module version so
+// the embedded metadata always matches the installable JAR's module.properties.
+def moduleMetadataFile = layout.projectDirectory.file('module-metadata.yaml')
+def moduleMetadata = new org.yaml.snakeyaml.Yaml().load(moduleMetadataFile.asFile.getText('UTF-8'))
+def metadataVersion = moduleMetadata?.modules instanceof List && !moduleMetadata.modules.isEmpty()
+        ? moduleMetadata.modules[0]?.version
+        : null
+if (!(metadataVersion instanceof String) || metadataVersion.isBlank()) {
+    throw new GradleException('module-metadata.yaml must declare modules[0].version')
+}
+
+def releaseTag = System.getenv('CI_COMMIT_TAG')
+if (releaseTag != null && !releaseTag.matches('v\\d+\\.\\d+\\.\\d+(-alpha\\.\\d+)?')) {
+    throw new GradleException('CI_COMMIT_TAG must use v<major>.<minor>.<patch>')
+}
+if (releaseTag != null && metadataVersion != releaseTag.substring(1)) {
+    throw new GradleException("module-metadata.yaml version ${metadataVersion} must match release tag ${releaseTag}")
+}
+version = releaseTag != null ? releaseTag.substring(1) : metadataVersion
+
+def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.1')
+def moduleApiRepositoryUrl = providers.gradleProperty('moduleApiRepositoryUrl')
+        .orElse('https://zalava.github.io/zalava-maven/')
+def githubPackagesActor = providers.gradleProperty('gpr.user')
+        .orElse(providers.environmentVariable('GITHUB_ACTOR'))
+def moduleApiToken = providers.gradleProperty('gpr.key')
+        .orElse(providers.environmentVariable('ZALAVA_MODULE_API_TOKEN'))
+        .orElse(providers.environmentVariable('ZALAVA_PUBLISH_TOKEN'))
+def githubPackagesToken = providers.environmentVariable('ZALAVA_PUBLISH_TOKEN')
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri(moduleApiRepositoryUrl.get())
+        if (moduleApiRepositoryUrl.get().startsWith('https://maven.pkg.github.com/')) {
+            credentials(PasswordCredentials) {
+                username = githubPackagesActor.orNull
+                password = moduleApiToken.orNull
+            }
+        }
+    }
+}
+
+dependencies {
+    compileOnlyApi "org.zalava:module-api:${moduleApiVersion.get()}"
+    implementation 'com.github.docker-java:docker-java-core:3.7.1'
+    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.7.1'
+    testImplementation "org.zalava:module-api:${moduleApiVersion.get()}"
+    testImplementation "org.zalava:module-api-test:${moduleApiVersion.get()}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.2'
+    testImplementation 'org.assertj:assertj-core:3.27.3'
+    testImplementation 'org.mockito:mockito-core:5.20.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    withJavadocJar()
+    withSourcesJar()
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'docker-engine'
+    }
+    dependsOn tasks.named('jar')
+    systemProperty 'module.version', project.version
+    def moduleArtifact = tasks.named('jar').flatMap { it.archiveFile }
+    doFirst {
+        systemProperty 'module.artifact', moduleArtifact.get().asFile.absolutePath
+    }
+    // The contract kit must load this module only from the built JAR, so this
+    // project's main output is excluded from the test runtime classpath.
+    classpath = files(sourceSets.test.output, configurations.testRuntimeClasspath)
+}
+
+// The real-engine lane keeps the full main output on its classpath, so it lives
+// in its own source set instead of the contract-kit-isolated default test lane.
+sourceSets {
+    engineUnitTest {
+        java.srcDir 'src/engineUnitTest/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+    realEngineTest {
+        java.srcDir 'src/realEngineTest/java'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    engineUnitTestImplementation.extendsFrom testImplementation
+    engineUnitTestRuntimeOnly.extendsFrom testRuntimeOnly
+    realEngineTestImplementation.extendsFrom testImplementation
+    realEngineTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+// Engine-free ownership/namespace tests against the real main classes (mocked Docker client).
+// Kept out of the contract-kit-isolated test lane, which excludes this project's main output.
+tasks.register('engineUnitTest', Test) {
+    description = 'Runs engine unit tests against the real main classes with a mocked client.'
+    group = 'verification'
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.engineUnitTest.output.classesDirs
+    classpath = sourceSets.engineUnitTest.runtimeClasspath
+    shouldRunAfter tasks.named('test')
+}
+
+tasks.register('realEngineTest', Test) {
+    description = 'Runs the opt-in contract tests against a reachable Docker engine.'
+    group = 'verification'
+    useJUnitPlatform {
+        includeTags 'docker-engine'
+    }
+    testClassesDirs = sourceSets.realEngineTest.output.classesDirs
+    classpath = sourceSets.realEngineTest.runtimeClasspath
+    shouldRunAfter tasks.named('test')
+}
+
+processResources {
+    inputs.property('moduleVersion', project.version)
+    filesMatching('module.properties') {
+        expand(moduleVersion: project.version)
+    }
+}
+
+// Validates module-metadata.yaml and embeds it at the root of the installable
+// bundle and inside module.jar so SEA's local artifact upload can read it.
+tasks.register('validateModuleMetadata') {
+    inputs.file(moduleMetadataFile)
+    doLast {
+        def module = moduleMetadata?.modules?.getAt(0)
+        ['moduleId', 'version', 'displayName', 'description', 'supportUrl'].each { key ->
+            if (!(module[key] instanceof String) || module[key].isBlank()) {
+                throw new GradleException("module-metadata.yaml ${key} must be a non-blank string")
+            }
+        }
+        if (!(module.supportUrl ==~ /https:\/\/.+/)) {
+            throw new GradleException('module-metadata.yaml supportUrl must be an HTTPS URL')
+        }
+        if (!(module.artifact instanceof Map) || module.artifact.version != module.version) {
+            throw new GradleException('module-metadata.yaml artifact.version must match the module version')
+        }
+        if (module.version != project.version.toString()) {
+            throw new GradleException("module-metadata.yaml version ${module.version} must match build version ${project.version}")
+        }
+        if (!(module.compatibility instanceof Map) || !(module.compatibility.seaRuntime instanceof String)) {
+            throw new GradleException('module-metadata.yaml compatibility.seaRuntime is required')
+        }
+        if (!(module.configurationSchema instanceof Map)) {
+            throw new GradleException('module-metadata.yaml configurationSchema is required')
+        }
+        if (!(module.factories instanceof List) || module.factories.isEmpty()) {
+            throw new GradleException('module-metadata.yaml factories must not be empty')
+        }
+        if (module.factories.collect { it.factoryId }.sort() != (module.configurationSchema.properties.keySet().sort())) {
+            throw new GradleException('module-metadata.yaml factory ids must match the configuration schema properties')
+        }
+        if (module.source instanceof Map && module.source.containsKey('revision')) {
+            throw new GradleException('module-metadata.yaml must not declare source.revision')
+        }
+    }
+}
+
+tasks.named('jar') {
+    archiveClassifier = 'plain'
+    from(moduleMetadataFile)
+}
+
+def bundleManifestDirectory = layout.buildDirectory.dir('generated/sea-module-bundle')
+
+tasks.register('bundleJar', Zip) {
+    dependsOn tasks.named('jar')
+    archiveClassifier = ''
+    archiveExtension = 'jar'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    reproducibleFileOrder = true
+    preserveFileTimestamps = false
+
+    from(tasks.named('jar').flatMap { it.archiveFile }) {
+        rename { 'module.jar' }
+    }
+    from(configurations.runtimeClasspath) {
+        into 'lib'
+    }
+    from(bundleManifestDirectory) {
+        include 'META-INF/sea-module-bundle.yaml'
+    }
+    from(moduleMetadataFile)
+
+    doFirst {
+        def module = tasks.named('jar').get().archiveFile.get().asFile
+        def runtime = configurations.runtimeClasspath.files.sort { left, right -> left.name <=> right.name }
+        def names = runtime.collect { it.name }
+        if (names.size() != names.toSet().size()) {
+            throw new GradleException('Runtime bundle artifact names must be unique')
+        }
+        def digest = { File file ->
+            java.security.MessageDigest.getInstance('SHA-256').digest(file.bytes).encodeHex().toString()
+        }
+        def manifest = new StringBuilder("module:\n  path: module.jar\n  sha256: ${digest(module)}\nruntime:\n")
+        runtime.each { file ->
+            manifest.append("- path: lib/${file.name}\n  sha256: ${digest(file)}\n")
+        }
+        def output = bundleManifestDirectory.get().file('META-INF/sea-module-bundle.yaml').asFile
+        output.parentFile.mkdirs()
+        output.setText(manifest.toString(), 'UTF-8')
+    }
+}
+
+tasks.register('verifyReleaseArtifact') {
+    dependsOn tasks.named('bundleJar')
+    doLast {
+        def bundle = tasks.named('bundleJar').get().archiveFile.get().asFile
+        def moduleProperties = zipTree(bundle).matching { include 'module.jar' }.singleFile
+        def nestedProperties = zipTree(moduleProperties)
+                .matching { include 'module.properties' }.singleFile.getText('UTF-8')
+        if (nestedProperties.trim() != "module.version=${project.version}") {
+            throw new GradleException("module.properties version does not match ${project.version}")
+        }
+    }
+}
+
+tasks.register('verifyBundleArtifact') {
+    dependsOn tasks.named('bundleJar')
+    doLast {
+        def bundle = tasks.named('bundleJar').get().archiveFile.get().asFile
+        def contents = zipTree(bundle)
+        def manifest = contents.matching { include 'META-INF/sea-module-bundle.yaml' }.singleFile.getText('UTF-8')
+        if (manifest.contains('\\n') || !manifest.startsWith('module:\n') || !manifest.contains('\nruntime:\n')) {
+            throw new GradleException('release bundle manifest must use real newlines')
+        }
+        if (!manifest.contains('path: module.jar') || !manifest.contains('path: lib/docker-java-core-3.7.1.jar')) {
+            throw new GradleException('release bundle must declare primary module and docker-java runtime members')
+        }
+        if (contents.matching { include 'module.jar' }.isEmpty()
+                || contents.matching { include 'lib/docker-java-core-3.7.1.jar' }.isEmpty()) {
+            throw new GradleException('release bundle must contain declared module and docker-java runtime members')
+        }
+        def module = contents.matching { include 'module.jar' }.singleFile
+        if (!contents.matching { include 'module-metadata.yaml' }.isEmpty()
+                && !zipTree(module).matching { include 'module-metadata.yaml' }.isEmpty()) {
+            // expected: the validated metadata is embedded at the bundle root and in module.jar.
+        } else {
+            throw new GradleException('bundle and primary module JAR must embed module-metadata.yaml')
+        }
+        if (!zipTree(module).matching { include 'META-INF/services/org.zalava.SeaModule' }.isEmpty()) {
+            // expected: ServiceLoader descriptor remains in the primary module JAR.
+        } else {
+            throw new GradleException('primary module JAR must contain the SeaModule service descriptor')
+        }
+        if (!zipTree(module).matching { include 'org/zalava/SeaModule.class' }.isEmpty()) {
+            throw new GradleException('primary module JAR must not include SEA module API classes')
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyBundleArtifact')
+    dependsOn tasks.named('validateModuleMetadata')
+    dependsOn tasks.named('engineUnitTest')
+}
+
+publishing {
+    publications {
+        module(MavenPublication) {
+            artifact tasks.named('bundleJar')
+            artifactId = 'zalava-module-docker'
+        }
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/Zalava/zalava-module-docker')
+            credentials(PasswordCredentials) {
+                username = githubPackagesActor.orNull
+                password = githubPackagesToken.orNull
+            }
+        }
+    }
+}
+
+tasks.named('generateMetadataFileForModulePublication') {
+    dependsOn tasks.named('jar')
+}
+
+tasks.withType(PublishToMavenRepository).configureEach {
+    doFirst {
+        if (repository.name == 'GitHubPackages'
+                && (!githubPackagesActor.present || !githubPackagesToken.present)) {
+            throw new GradleException('GitHub Packages publication requires GITHUB_ACTOR and ZALAVA_PUBLISH_TOKEN')
+        }
+    }
+}

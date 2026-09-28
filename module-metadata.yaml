@@ -1,0 +1,58 @@
+schemaVersion: 1
+modules:
+  - moduleId: zalava-module-docker
+    version: 0.1.0-alpha.1
+    displayName: Docker Services
+    description: Bounded Docker Engine lifecycle for SEA-managed services and opt-in user-requested container management.
+    supportUrl: https://github.com/Zalava/zalava-module-docker
+    artifact:
+      groupId: org.zalava.modules
+      artifactId: zalava-module-docker
+      version: 0.1.0-alpha.1
+    source:
+      repository: https://github.com/Zalava/zalava-module-docker.git
+      license: Apache-2.0
+    build:
+      command: ["./gradlew", "build"]
+      verificationCommand: ["./gradlew", "test"]
+    compatibility:
+      seaRuntime: ">=1.0.0 <2.0.0"
+    configurationSchema:
+      type: object
+      additionalProperties: false
+      properties:
+        services:
+          type: object
+          additionalProperties: false
+          required: [engineEndpoint]
+          properties:
+            engineEndpoint:
+              type: string
+              description: Explicit Docker engine endpoint owned by SEA, e.g. unix:///var/run/docker.sock
+            commandTimeoutSeconds:
+              type: integer
+              minimum: 1
+        docker-containers:
+          type: object
+          additionalProperties: false
+          required: [engineEndpoint]
+          properties:
+            engineEndpoint:
+              type: string
+              description: Explicit Docker engine endpoint owned by SEA, e.g. unix:///var/run/docker.sock
+            writable: {type: boolean, default: false}
+            manageExternalContainers: {type: boolean, default: false}
+            allowPublicPorts: {type: boolean, default: false}
+    factories:
+      - factoryId: services
+        providerType: managed-service-engine
+      - factoryId: docker-containers
+        providerType: docker-containers
+    services:
+      provided:
+        - serviceId: managed-service-engine
+          contractVersion: "2"
+      required: []
+    operations: [listContainers, inspectContainer, containerLogs, runContainer, startContainer, stopContainer, restartContainer, removeContainer]
+    security:
+      permissions: [docker-read, docker-manage]
