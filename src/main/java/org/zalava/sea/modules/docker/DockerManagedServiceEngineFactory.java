@@ -2,10 +2,10 @@ package org.zalava.modules.docker;
 
 import java.time.Duration;
 import java.util.Map;
-import org.zalava.SeaServiceContract;
-import org.zalava.SeaServiceDescriptor;
-import org.zalava.SeaServiceFactory;
-import org.zalava.SeaServiceFactoryContext;
+import org.zalava.ZalavaServiceContract;
+import org.zalava.ZalavaServiceDescriptor;
+import org.zalava.ZalavaServiceFactory;
+import org.zalava.ZalavaServiceFactoryContext;
 import org.zalava.managed.ManagedServiceEngine;
 
 /**
@@ -13,27 +13,27 @@ import org.zalava.managed.ManagedServiceEngine;
  * is SEA administrator configuration; it is never derived from module input, caller requests, or
  * environment fallbacks.
  */
-final class DockerManagedServiceEngineFactory implements SeaServiceFactory<ManagedServiceEngine> {
+final class DockerManagedServiceEngineFactory implements ZalavaServiceFactory<ManagedServiceEngine> {
 
   static final String ENDPOINT_PROPERTY = "engineEndpoint";
   static final String TIMEOUT_PROPERTY = "commandTimeoutSeconds";
   static final Duration DEFAULT_COMMAND_TIMEOUT = Duration.ofSeconds(30);
 
   @Override
-  public SeaServiceDescriptor descriptor() {
-    return new SeaServiceDescriptor(
+  public ZalavaServiceDescriptor descriptor() {
+    return new ZalavaServiceDescriptor(
         ManagedServiceEngine.CONTRACT.serviceId(),
         DockerSeaModule.MODULE_ID,
         ManagedServiceEngine.CONTRACT.contractVersion());
   }
 
   @Override
-  public SeaServiceContract<ManagedServiceEngine> contract() {
+  public ZalavaServiceContract<ManagedServiceEngine> contract() {
     return ManagedServiceEngine.CONTRACT;
   }
 
   @Override
-  public ManagedServiceEngine create(SeaServiceFactoryContext context) {
+  public ManagedServiceEngine create(ZalavaServiceFactoryContext context) {
     Map<String, Object> configuration = context.configuration();
     Object endpoint = configuration.get(ENDPOINT_PROPERTY);
     if (!(endpoint instanceof String engineEndpoint) || engineEndpoint.isBlank()) {

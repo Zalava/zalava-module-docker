@@ -8,11 +8,11 @@ import java.util.Properties;
 import org.zalava.ModuleDescriptor;
 import org.zalava.ModuleConfigurationDescriptor;
 import org.zalava.ProviderFactory;
-import org.zalava.SeaModule;
-import org.zalava.SeaServiceFactory;
+import org.zalava.ZalavaModule;
+import org.zalava.ZalavaServiceFactory;
 
 /** Docker engine service and independently configured user-facing container tools. */
-public final class DockerSeaModule implements SeaModule {
+public final class DockerSeaModule implements ZalavaModule {
 
   public static final String MODULE_ID = "zalava-module-docker";
 
@@ -47,7 +47,7 @@ public final class DockerSeaModule implements SeaModule {
   }
 
   @Override
-  public List<SeaServiceFactory<?>> serviceFactories() {
+  public List<ZalavaServiceFactory<?>> serviceFactories() {
     return List.of(new DockerManagedServiceEngineFactory());
   }
 
