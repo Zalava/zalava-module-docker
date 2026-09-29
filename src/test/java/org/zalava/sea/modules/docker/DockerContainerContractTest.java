@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.zalava.InvocationContext;
-import org.zalava.SeaToolDescriptor;
+import org.zalava.ZalavaToolDescriptor;
 import org.zalava.testing.ConfigFixture;
 import org.zalava.testing.ModuleContractKit;
 import org.zalava.testing.ProviderFixture;
@@ -66,7 +66,7 @@ class DockerContainerContractTest {
   void listsAndInspectsWithoutExposingEnvironmentSecrets() {
     exists = true;
     try (var providers = providers(false, false, false)) {
-      assertThat(providers.tools(PROVIDER).stream().map(SeaToolDescriptor::name))
+      assertThat(providers.tools(PROVIDER).stream().map(ZalavaToolDescriptor::name))
           .containsExactly("listContainers", "inspectContainer", "containerLogs");
       var inventory = providers.invoke(PROVIDER, "listContainers", args("{\"all\":true}"));
       assertThat(inventory.success()).isTrue();
@@ -83,8 +83,8 @@ class DockerContainerContractTest {
   @Test
   void createsPublishesAndRunsLifecycleUsingResolvedContainerIds() {
     try (var providers = providers(true, false, false)) {
-      assertThat(providers.tools(PROVIDER).stream().filter(SeaToolDescriptor::sideEffecting)
-          .map(SeaToolDescriptor::name)).containsExactly("runContainer", "startContainer",
+      assertThat(providers.tools(PROVIDER).stream().filter(ZalavaToolDescriptor::sideEffecting)
+          .map(ZalavaToolDescriptor::name)).containsExactly("runContainer", "startContainer",
               "stopContainer", "restartContainer", "removeContainer");
       var result = providers.invoke(PROVIDER, "runContainer", args("""
           {"name":"sample","image":"nginx:alpine","ports":[

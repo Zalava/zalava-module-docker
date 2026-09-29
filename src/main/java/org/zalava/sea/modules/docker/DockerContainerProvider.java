@@ -20,14 +20,14 @@ import java.util.concurrent.TimeUnit;
 import org.zalava.InvocationContext;
 import org.zalava.ProviderCapabilities;
 import org.zalava.ProviderDescriptor;
-import org.zalava.SeaOperationResult;
-import org.zalava.SeaProvider;
-import org.zalava.SeaToolDescriptor;
-import org.zalava.SeaToolInputSchemas;
+import org.zalava.ZalavaOperationResult;
+import org.zalava.ZalavaProvider;
+import org.zalava.ZalavaToolDescriptor;
+import org.zalava.ZalavaToolInputSchemas;
 import tools.jackson.databind.JsonNode;
 
 /** Explicit user operations; never changes containers controlled by SEA's reconciler. */
-final class DockerContainerProvider implements SeaProvider {
+final class DockerContainerProvider implements ZalavaProvider {
   static final String OWNER_LABEL = "org.zalava.user.provider-id";
   private static final Set<String> MUTATIONS = Set.of("runContainer", "startContainer",
       "stopContainer", "restartContainer", "removeContainer");
@@ -60,8 +60,8 @@ final class DockerContainerProvider implements SeaProvider {
   }
 
   @Override
-  public List<SeaToolDescriptor> listTools() {
-    List<SeaToolDescriptor> tools = new ArrayList<>();
+  public List<ZalavaToolDescriptor> listTools() {
+    List<ZalavaToolDescriptor> tools = new ArrayList<>();
     tools.add(tool("listContainers", "List Docker containers and published ports (running by default).",
         Map.of("all", Map.of("type", "boolean"))));
     tools.add(tool("inspectContainer", "Inspect container state, ownership and port bindings; excludes secrets.",
@@ -71,7 +71,7 @@ final class DockerContainerProvider implements SeaProvider {
     if (writable) {
       tools.add(tool("runContainer", "Pull an image, create and start a named container. Publish ports at creation; defaults to localhost. Does not replace existing containers.",
           Map.of("name", string(), "image", string(), "ports", Map.of("type", "array", "maxItems", 32,
-              "items", SeaToolInputSchemas.object(Map.of("containerPort", integer(1, 65535),
+              "items", ZalavaToolInputSchemas.object(Map.of("containerPort", integer(1, 65535),
                   "hostPort", integer(1, 65535), "hostIp", Map.of("type", "string", "enum", List.of("127.0.0.1", "0.0.0.0")),
                   "protocol", Map.of("type", "string", "enum", List.of("tcp", "udp"))), "containerPort", "hostPort"))), "name", "image"));
       for (String name : List.of("startContainer", "stopContainer", "restartContainer", "removeContainer")) {
@@ -84,10 +84,10 @@ final class DockerContainerProvider implements SeaProvider {
     return List.copyOf(tools);
   }
 
-  private static SeaToolDescriptor tool(String name, String description,
+  private static ZalavaToolDescriptor tool(String name, String description,
       Map<String, Object> properties, String... required) {
-    return new SeaToolDescriptor(name, description, MUTATIONS.contains(name), List.of("docker"),
-        SeaToolInputSchemas.object(properties, required));
+    return new ZalavaToolDescriptor(name, description, MUTATIONS.contains(name), List.of("docker"),
+        ZalavaToolInputSchemas.object(properties, required));
   }
 
   private static Map<String, Object> string() { return Map.of("type", "string", "minLength", 1); }
@@ -96,14 +96,14 @@ final class DockerContainerProvider implements SeaProvider {
   }
 
   @Override
-  public SeaOperationResult callTool(String name, JsonNode arguments, InvocationContext context) {
+  public ZalavaOperationResult callTool(String name, JsonNode arguments, InvocationContext context) {
     if (MUTATIONS.contains(name)) {
       if (!writable) throw new UnsupportedOperationException("Docker provider is read-only");
       if (context == null || !context.confirmed()) {
         throw new IllegalArgumentException("Docker mutation requires confirmation");
       }
     }
-    return SeaOperationResult.success(switch (name) {
+    return ZalavaOperationResult.success(switch (name) {
       case "listContainers" -> list(arguments);
       case "inspectContainer" -> inspect(arguments);
       case "containerLogs" -> logs(arguments);

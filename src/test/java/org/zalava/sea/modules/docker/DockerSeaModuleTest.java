@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.zalava.ModuleDescriptor;
-import org.zalava.SeaServiceFactory;
+import org.zalava.ZalavaServiceFactory;
 import org.zalava.managed.ManagedServiceEngine;
 import org.zalava.testing.ConfigFixture;
 import org.zalava.testing.ModuleContractKit;
@@ -70,7 +70,7 @@ class DockerSeaModuleTest {
 
     @Test
     void declaresTheManagedServiceEngineContractVersionTwo() {
-        SeaServiceFactory<?> factory = kit.module().serviceFactories().getFirst();
+        ZalavaServiceFactory<?> factory = kit.module().serviceFactories().getFirst();
         assertThat(factory.descriptor().serviceId()).isEqualTo(SERVICE_ID);
         assertThat(factory.descriptor().moduleId()).isEqualTo(MODULE_ID);
         assertThat(factory.descriptor().contractVersion()).isEqualTo("2");

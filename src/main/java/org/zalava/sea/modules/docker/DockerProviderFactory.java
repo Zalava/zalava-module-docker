@@ -9,7 +9,7 @@ import java.util.Map;
 import org.zalava.ProviderFactory;
 import org.zalava.ProviderFactoryContext;
 import org.zalava.ProviderFactoryDescriptor;
-import org.zalava.SeaProvider;
+import org.zalava.ZalavaProvider;
 
 /** User tools are configured independently from the reconciler's engine service. */
 final class DockerProviderFactory implements ProviderFactory {
@@ -22,7 +22,7 @@ final class DockerProviderFactory implements ProviderFactory {
   }
 
   @Override
-  public List<SeaProvider> createProviders(ProviderFactoryContext context) {
+  public List<ZalavaProvider> createProviders(ProviderFactoryContext context) {
     Map<String, Object> configuration = context.configuration();
     if (configuration.isEmpty()) return List.of();
     Object endpoint = configuration.get("engineEndpoint");

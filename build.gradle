@@ -34,7 +34,7 @@ if (releaseTag != null && metadataVersion != releaseTag.substring(1)) {
 }
 version = releaseTag != null ? releaseTag.substring(1) : metadataVersion
 
-def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.1')
+def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.2')
 def moduleApiRepositoryUrl = providers.gradleProperty('moduleApiRepositoryUrl')
         .orElse('https://zalava.github.io/zalava-maven/')
 def githubPackagesActor = providers.gradleProperty('gpr.user')
@@ -263,12 +263,12 @@ tasks.register('verifyBundleArtifact') {
         } else {
             throw new GradleException('bundle and primary module JAR must embed module-metadata.yaml')
         }
-        if (!zipTree(module).matching { include 'META-INF/services/org.zalava.SeaModule' }.isEmpty()) {
+        if (!zipTree(module).matching { include 'META-INF/services/org.zalava.ZalavaModule' }.isEmpty()) {
             // expected: ServiceLoader descriptor remains in the primary module JAR.
         } else {
-            throw new GradleException('primary module JAR must contain the SeaModule service descriptor')
+            throw new GradleException('primary module JAR must contain the ZalavaModule service descriptor')
         }
-        if (!zipTree(module).matching { include 'org/zalava/SeaModule.class' }.isEmpty()) {
+        if (!zipTree(module).matching { include 'org/zalava/ZalavaModule.class' }.isEmpty()) {
             throw new GradleException('primary module JAR must not include SEA module API classes')
         }
     }
