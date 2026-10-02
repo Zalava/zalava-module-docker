@@ -16,9 +16,9 @@ import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.ContainerConfig;
 import java.time.Duration;
 import java.util.Map;
-import org.zalava.managed.ManagedServiceEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * Engine-free coverage of the contract-v2 ownership boundary: removal must only ever address the

@@ -29,12 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.zalava.managed.ManagedServiceEngine;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
- * First concrete engine implementation: Docker through the maintained docker-java Apache
- * HttpClient 5 transport. SEA owns the engine endpoint; the module never exposes the endpoint,
- * socket authority, or any imperative engine handle beyond this contract.
+ * First concrete engine implementation: Docker through the maintained docker-java Apache HttpClient
+ * 5 transport. SEA owns the engine endpoint; the module never exposes the endpoint, socket
+ * authority, or any imperative engine handle beyond this contract.
  */
 final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
@@ -90,8 +90,8 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
   /**
    * Negotiates the Engine API against the configured endpoint. Called once before the first
-   * reconciliation so a missing, denied, or incompatible engine fails at startup instead of
-   * during lifecycle work.
+   * reconciliation so a missing, denied, or incompatible engine fails at startup instead of during
+   * lifecycle work.
    */
   void verifyEngineCompatibility() {
     docker.pingCmd().exec();
@@ -140,8 +140,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
       throw new IllegalStateException("Interrupted pulling the image for " + serviceId, ex);
     }
     if (!pulled) {
-      throw new IllegalStateException(
-          "Timed out pulling the digest-pinned image for " + serviceId);
+      throw new IllegalStateException("Timed out pulling the digest-pinned image for " + serviceId);
     }
     String imageId = docker.inspectImageCmd(imageReference).exec().getId();
     if (imageId == null || imageId.isBlank()) {
@@ -207,9 +206,10 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
               return;
             }
             String line = new String(frame.getPayload(), StandardCharsets.UTF_8).strip();
-            lines.add(line.length() > MAX_LOG_LINE_LENGTH
-                ? line.substring(0, MAX_LOG_LINE_LENGTH)
-                : line);
+            lines.add(
+                line.length() > MAX_LOG_LINE_LENGTH
+                    ? line.substring(0, MAX_LOG_LINE_LENGTH)
+                    : line);
           }
         };
     try {
@@ -239,8 +239,8 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
   /**
    * Binds only resources present in BOTH the desired state and the approved grant, so undeclared
-   * mounts, devices, or widened grants can never reach the engine. Ports publish on loopback of
-   * the granted host port; host networking and socket grants stay out of reach by construction.
+   * mounts, devices, or widened grants can never reach the engine. Ports publish on loopback of the
+   * granted host port; host networking and socket grants stay out of reach by construction.
    */
   static HostConfig hostConfig(Request request) {
     var desired = request.desiredState();
@@ -287,7 +287,8 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
   /** Defensive re-check mirroring the SEA-owned path rules that validated the grant. */
   private static void requireCanonicalPath(String value, String name) {
-    if (value == null || !value.equals(java.nio.file.Path.of(value).normalize().toString())
+    if (value == null
+        || !value.equals(java.nio.file.Path.of(value).normalize().toString())
         || "/".equals(value)) {
       throw new IllegalStateException(name + " must contain canonical non-root absolute paths");
     }
