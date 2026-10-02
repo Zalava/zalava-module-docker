@@ -2,11 +2,11 @@ package org.zalava.modules.docker;
 
 import java.time.Duration;
 import java.util.Map;
-import org.zalava.ZalavaServiceContract;
-import org.zalava.ZalavaServiceDescriptor;
-import org.zalava.ZalavaServiceFactory;
-import org.zalava.ZalavaServiceFactoryContext;
-import org.zalava.managed.ManagedServiceEngine;
+import org.zalava.api.ZalavaServiceContract;
+import org.zalava.api.ZalavaServiceDescriptor;
+import org.zalava.api.ZalavaServiceFactory;
+import org.zalava.api.ZalavaServiceFactoryContext;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * Creates the Docker engine service from explicit module configuration only. The engine endpoint is

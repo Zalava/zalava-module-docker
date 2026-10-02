@@ -10,11 +10,11 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.zalava.managed.ManagedServiceDesiredState;
-import org.zalava.managed.ManagedServiceEngine;
-import org.zalava.managed.ManagedServiceLifecycle;
-import org.zalava.managed.ManagedServiceLimits;
-import org.zalava.managed.ManagedServiceResourceGrant;
+import org.zalava.api.extensions.managed.ManagedServiceDesiredState;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
+import org.zalava.api.extensions.managed.ManagedServiceLifecycle;
+import org.zalava.api.extensions.managed.ManagedServiceLimits;
+import org.zalava.api.extensions.managed.ManagedServiceResourceGrant;
 
 /**
  * Contract tests against a real Docker engine. Tagged {@code docker-engine} and excluded from the

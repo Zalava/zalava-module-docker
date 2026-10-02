@@ -15,11 +15,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.zalava.InvocationContext;
-import org.zalava.ZalavaToolDescriptor;
-import org.zalava.testing.ConfigFixture;
-import org.zalava.testing.ModuleContractKit;
-import org.zalava.testing.ProviderFixture;
+import org.zalava.api.InvocationContext;
+import org.zalava.api.ZalavaToolDescriptor;
+import org.zalava.api.testing.ConfigFixture;
+import org.zalava.api.testing.ModuleContractKit;
+import org.zalava.api.testing.ProviderFixture;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -72,18 +72,40 @@ class DockerContainerContractTest {
     try (var providers = providers(false, false, false)) {
       assertThat(providers.tools(PROVIDER).stream().map(ZalavaToolDescriptor::name))
           .containsExactly("listContainers", "inspectContainer", "containerLogs");
-      var inventory = providers.invoke(PROVIDER, "listContainers", args("{\"all\":true}"));
+      var inventory =
+          providers.invoke(
+              PROVIDER,
+              "listContainers",
+              new tools.jackson.databind.json.JsonMapper()
+                  .convertValue(
+                      args("{\"all\":true}"),
+                      new tools.jackson.core.type.TypeReference<
+                          java.util.Map<String, Object>>() {}));
       assertThat(inventory.success()).isTrue();
       assertThat(inventory.content().toString()).contains("sample", "8080", "sea-user");
       var detail =
-          providers.invoke(PROVIDER, "inspectContainer", args("{\"container\":\"sample\"}"));
+          providers.invoke(
+              PROVIDER,
+              "inspectContainer",
+              new tools.jackson.databind.json.JsonMapper()
+                  .convertValue(
+                      args("{\"container\":\"sample\"}"),
+                      new tools.jackson.core.type.TypeReference<
+                          java.util.Map<String, Object>>() {}));
       assertThat(detail.content().toString()).contains("sample", "8080").doesNotContain("SECRET");
       assertThat(requests).anyMatch(value -> value.contains("all=true") || value.contains("all=1"));
       assertThatThrownBy(
               () ->
                   providers
                       .requireProvider(PROVIDER)
-                      .callTool("stopContainer", args("{\"container\":\"sample\"}"), CONFIRMED))
+                      .callTool(
+                          "stopContainer",
+                          new tools.jackson.databind.json.JsonMapper()
+                              .convertValue(
+                                  args("{\"container\":\"sample\"}"),
+                                  new tools.jackson.core.type.TypeReference<
+                                      java.util.Map<String, Object>>() {}),
+                          CONFIRMED))
           .isInstanceOf(UnsupportedOperationException.class)
           .hasMessageContaining("read-only");
     }
@@ -106,12 +128,16 @@ class DockerContainerContractTest {
           providers.invoke(
               PROVIDER,
               "runContainer",
-              args(
-                  """
+              new tools.jackson.databind.json.JsonMapper()
+                  .convertValue(
+                      args(
+                          """
           {"name":"sample","image":"nginx:alpine","ports":[
             {"containerPort":80,"hostPort":8080},
             {"containerPort":53,"hostPort":5353,"protocol":"udp"}]}
           """),
+                      new tools.jackson.core.type.TypeReference<
+                          java.util.Map<String, Object>>() {}),
               CONFIRMED);
       assertThat(result.content().toString()).contains("created-id", "started=true");
       assertThat(created.path("Image").asString()).isEqualTo("sha256:resolved");
@@ -123,16 +149,61 @@ class DockerContainerContractTest {
       assertThat(host.path("PortBindings").path("53/udp").get(0).path("HostPort").asString())
           .isEqualTo("5353");
       assertThat(host.path("Memory").asLong()).isEqualTo(512L * 1024 * 1024);
-      assertThatThrownBy(() -> providers.invoke(PROVIDER, "removeContainer", target(), CONFIRMED))
+      assertThatThrownBy(
+              () ->
+                  providers.invoke(
+                      PROVIDER,
+                      "removeContainer",
+                      new tools.jackson.databind.json.JsonMapper()
+                          .convertValue(
+                              target(),
+                              new tools.jackson.core.type.TypeReference<
+                                  java.util.Map<String, Object>>() {}),
+                      CONFIRMED))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Stop");
-      providers.invoke(PROVIDER, "restartContainer", target(), CONFIRMED);
-      providers.invoke(PROVIDER, "stopContainer", target(), CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "restartContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "stopContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
       assertThat(running).isFalse();
-      providers.invoke(PROVIDER, "startContainer", target(), CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "startContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
       assertThat(running).isTrue();
-      providers.invoke(PROVIDER, "stopContainer", target(), CONFIRMED);
-      providers.invoke(PROVIDER, "removeContainer", target(), CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "stopContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "removeContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
       assertThat(exists).isFalse();
       assertThat(requests).contains("DELETE /containers/created-id");
       assertThat(requests).noneMatch(value -> value.startsWith("POST /containers/sample/stop"));
@@ -148,7 +219,11 @@ class DockerContainerContractTest {
                       .requireProvider(PROVIDER)
                       .callTool(
                           "runContainer",
-                          args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                          new tools.jackson.databind.json.JsonMapper()
+                              .convertValue(
+                                  args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                                  new tools.jackson.core.type.TypeReference<
+                                      java.util.Map<String, Object>>() {}),
                           InvocationContext.system()))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("confirmation");
@@ -160,7 +235,16 @@ class DockerContainerContractTest {
               "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":70000,\"containerPort\":80}]}",
               "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":8080,\"containerPort\":80,\"hostIp\":\"0.0.0.0\"}]}")) {
         assertThatThrownBy(
-                () -> providers.invoke(PROVIDER, "runContainer", args(invalid), CONFIRMED))
+                () ->
+                    providers.invoke(
+                        PROVIDER,
+                        "runContainer",
+                        new tools.jackson.databind.json.JsonMapper()
+                            .convertValue(
+                                args(invalid),
+                                new tools.jackson.core.type.TypeReference<
+                                    java.util.Map<String, Object>>() {}),
+                        CONFIRMED))
             .isInstanceOf(IllegalArgumentException.class);
       }
       assertThat(requests).isEmpty();
@@ -174,7 +258,17 @@ class DockerContainerContractTest {
     try (var providers = providers(true, true, true)) {
       for (String operation :
           List.of("startContainer", "stopContainer", "restartContainer", "removeContainer")) {
-        assertThatThrownBy(() -> providers.invoke(PROVIDER, operation, target(), CONFIRMED))
+        assertThatThrownBy(
+                () ->
+                    providers.invoke(
+                        PROVIDER,
+                        operation,
+                        new tools.jackson.databind.json.JsonMapper()
+                            .convertValue(
+                                target(),
+                                new tools.jackson.core.type.TypeReference<
+                                    java.util.Map<String, Object>>() {}),
+                        CONFIRMED))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("reconciler-owned");
       }
@@ -187,13 +281,30 @@ class DockerContainerContractTest {
     exists = true;
     labels = "{}";
     try (var providers = providers(true, false, false)) {
-      assertThatThrownBy(() -> providers.invoke(PROVIDER, "startContainer", target(), CONFIRMED))
+      assertThatThrownBy(
+              () ->
+                  providers.invoke(
+                      PROVIDER,
+                      "startContainer",
+                      new tools.jackson.databind.json.JsonMapper()
+                          .convertValue(
+                              target(),
+                              new tools.jackson.core.type.TypeReference<
+                                  java.util.Map<String, Object>>() {}),
+                      CONFIRMED))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("manageExternalContainers");
       assertThat(requests).allMatch(value -> value.startsWith("GET "));
     }
     try (var providers = providers(true, true, false)) {
-      providers.invoke(PROVIDER, "startContainer", target(), CONFIRMED);
+      providers.invoke(
+          PROVIDER,
+          "startContainer",
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  target(),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
+          CONFIRMED);
       assertThat(running).isTrue();
     }
   }
@@ -204,11 +315,14 @@ class DockerContainerContractTest {
       providers.invoke(
           PROVIDER,
           "runContainer",
-          args(
-              """
+          new tools.jackson.databind.json.JsonMapper()
+              .convertValue(
+                  args(
+                      """
           {"name":"sample","image":"nginx","ports":[
             {"containerPort":80,"hostPort":8080,"hostIp":"0.0.0.0"}]}
           """),
+                  new tools.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {}),
           CONFIRMED);
       assertThat(
               created
@@ -231,7 +345,11 @@ class DockerContainerContractTest {
                   providers.invoke(
                       PROVIDER,
                       "runContainer",
-                      args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                      new tools.jackson.databind.json.JsonMapper()
+                          .convertValue(
+                              args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                              new tools.jackson.core.type.TypeReference<
+                                  java.util.Map<String, Object>>() {}),
                       CONFIRMED))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("already exists");
@@ -243,7 +361,11 @@ class DockerContainerContractTest {
                   providers.invoke(
                       PROVIDER,
                       "runContainer",
-                      args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                      new tools.jackson.databind.json.JsonMapper()
+                          .convertValue(
+                              args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                              new tools.jackson.core.type.TypeReference<
+                                  java.util.Map<String, Object>>() {}),
                       CONFIRMED))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("created-id");
@@ -258,7 +380,13 @@ class DockerContainerContractTest {
     try (var providers = providers(false, false, false)) {
       var result =
           providers.invoke(
-              PROVIDER, "containerLogs", args("{\"container\":\"sample\",\"lines\":1}"));
+              PROVIDER,
+              "containerLogs",
+              new tools.jackson.databind.json.JsonMapper()
+                  .convertValue(
+                      args("{\"container\":\"sample\",\"lines\":1}"),
+                      new tools.jackson.core.type.TypeReference<
+                          java.util.Map<String, Object>>() {}));
       @SuppressWarnings("unchecked")
       var content = (Map<String, Object>) result.content();
       @SuppressWarnings("unchecked")

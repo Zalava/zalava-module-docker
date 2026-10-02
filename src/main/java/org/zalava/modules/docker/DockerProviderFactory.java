@@ -6,10 +6,10 @@ import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import org.zalava.ProviderFactory;
-import org.zalava.ProviderFactoryContext;
-import org.zalava.ProviderFactoryDescriptor;
-import org.zalava.ZalavaProvider;
+import org.zalava.api.ProviderFactory;
+import org.zalava.api.ProviderFactoryContext;
+import org.zalava.api.ProviderFactoryDescriptor;
+import org.zalava.api.ZalavaProvider;
 
 /** User tools are configured independently from the reconciler's engine service. */
 final class DockerProviderFactory implements ProviderFactory {

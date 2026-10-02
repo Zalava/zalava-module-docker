@@ -11,7 +11,7 @@ import java.net.URI;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.zalava.InvocationContext;
+import org.zalava.api.InvocationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /**

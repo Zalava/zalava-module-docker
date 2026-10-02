@@ -5,11 +5,11 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.zalava.ModuleConfigurationDescriptor;
-import org.zalava.ModuleDescriptor;
-import org.zalava.ProviderFactory;
-import org.zalava.ZalavaModule;
-import org.zalava.ZalavaServiceFactory;
+import org.zalava.api.ModuleConfigurationDescriptor;
+import org.zalava.api.ModuleDescriptor;
+import org.zalava.api.ProviderFactory;
+import org.zalava.api.ZalavaModule;
+import org.zalava.api.ZalavaServiceFactory;
 
 /** Docker engine service and independently configured user-facing container tools. */
 public final class DockerSeaModule implements ZalavaModule {

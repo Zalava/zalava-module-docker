@@ -17,13 +17,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.zalava.InvocationContext;
-import org.zalava.ProviderCapabilities;
-import org.zalava.ProviderDescriptor;
-import org.zalava.ZalavaOperationResult;
-import org.zalava.ZalavaProvider;
-import org.zalava.ZalavaToolDescriptor;
-import org.zalava.ZalavaToolInputSchemas;
+import org.zalava.api.InvocationContext;
+import org.zalava.api.ProviderCapabilities;
+import org.zalava.api.ProviderDescriptor;
+import org.zalava.api.ZalavaOperationResult;
+import org.zalava.api.ZalavaProvider;
+import org.zalava.api.ZalavaToolDescriptor;
+import org.zalava.api.ZalavaToolInputSchemas;
 import tools.jackson.databind.JsonNode;
 
 /** Explicit user operations; never changes containers controlled by SEA's reconciler. */
@@ -154,7 +154,9 @@ final class DockerContainerProvider implements ZalavaProvider {
 
   @Override
   public ZalavaOperationResult callTool(
-      String name, JsonNode arguments, InvocationContext context) {
+      String name, java.util.Map<String, Object> argumentValues, InvocationContext context) {
+    tools.jackson.databind.JsonNode arguments =
+        new tools.jackson.databind.json.JsonMapper().valueToTree(argumentValues);
     if (MUTATIONS.contains(name)) {
       if (!writable) throw new UnsupportedOperationException("Docker provider is read-only");
       if (context == null || !context.confirmed()) {

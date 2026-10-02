@@ -36,7 +36,7 @@ if (releaseTag != null && metadataVersion != releaseTag.substring(1)) {
 }
 version = releaseTag != null ? releaseTag.substring(1) : metadataVersion
 
-def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.2')
+def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.6')
 def moduleApiRepositoryUrl = providers.gradleProperty('moduleApiRepositoryUrl')
         .orElse('https://zalava.github.io/zalava-maven/')
 def githubPackagesActor = providers.gradleProperty('gpr.user')
@@ -60,6 +60,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'tools.jackson.core:jackson-databind:3.1.4'
     compileOnlyApi "org.zalava:module-api:${moduleApiVersion.get()}"
     implementation 'com.github.docker-java:docker-java-core:3.7.1'
     implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.7.1'
@@ -265,7 +266,7 @@ tasks.register('verifyBundleArtifact') {
         } else {
             throw new GradleException('bundle and primary module JAR must embed module-metadata.yaml')
         }
-        if (!zipTree(module).matching { include 'META-INF/services/org.zalava.ZalavaModule' }.isEmpty()) {
+        if (!zipTree(module).matching { include 'META-INF/services/org.zalava.api.ZalavaModule' }.isEmpty()) {
             // expected: ServiceLoader descriptor remains in the primary module JAR.
         } else {
             throw new GradleException('primary module JAR must contain the ZalavaModule service descriptor')

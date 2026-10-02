@@ -13,7 +13,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
-import org.zalava.managed.*;
+import org.zalava.api.extensions.managed.*;
 
 class ManagedEngineBoundaryTest {
   private static final String ID = "sea-owned";

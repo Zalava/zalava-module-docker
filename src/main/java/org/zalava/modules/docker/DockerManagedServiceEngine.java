@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import org.zalava.managed.ManagedServiceEngine;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * First concrete engine implementation: Docker through the maintained docker-java Apache HttpClient

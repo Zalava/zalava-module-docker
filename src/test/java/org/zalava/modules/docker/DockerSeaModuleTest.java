@@ -9,12 +9,12 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.zalava.ModuleDescriptor;
-import org.zalava.ZalavaServiceFactory;
-import org.zalava.managed.ManagedServiceEngine;
-import org.zalava.testing.ConfigFixture;
-import org.zalava.testing.ModuleContractKit;
-import org.zalava.testing.ServiceFixture;
+import org.zalava.api.ModuleDescriptor;
+import org.zalava.api.ZalavaServiceFactory;
+import org.zalava.api.extensions.managed.ManagedServiceEngine;
+import org.zalava.api.testing.ConfigFixture;
+import org.zalava.api.testing.ModuleContractKit;
+import org.zalava.api.testing.ServiceFixture;
 
 /**
  * Exercises the real built module JAR at the stable {@code module-api} boundary through the

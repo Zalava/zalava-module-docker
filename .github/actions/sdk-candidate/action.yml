@@ -1,0 +1,21 @@
+name: Build pinned SDK candidate
+description: Candidate verification only; tags must consume released API and kit.
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: Zalava/zalava
+        ref: de66ca435bff27132840dab0edcd8b211df246d7
+        path: .sdk-candidate
+    - name: Verify and build candidate API and kit
+      shell: bash
+      working-directory: .sdk-candidate
+      env:
+        CI_COMMIT_TAG: v0.1.0-alpha.6
+      run: ./gradlew --no-configuration-cache :module-api:check :module-api-test:check :module-api:publishModuleApiPublicationToZalavaStaticRepository :module-api-test:publishModuleApiTestPublicationToZalavaStaticRepository
+    - name: Select explicit candidate Maven repository for this job
+      shell: bash
+      run: |
+        echo "ORG_GRADLE_PROJECT_moduleApiRepositoryUrl=file://${{ github.workspace }}/.sdk-candidate/build/repositories/zalava" >> "$GITHUB_ENV"
+        echo "ORG_GRADLE_PROJECT_zalavaRepositoryUrl=file://${{ github.workspace }}/.sdk-candidate/build/repositories/zalava" >> "$GITHUB_ENV"
