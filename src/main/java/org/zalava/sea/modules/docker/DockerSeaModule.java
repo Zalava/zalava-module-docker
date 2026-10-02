@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import org.zalava.ModuleDescriptor;
 import org.zalava.ModuleConfigurationDescriptor;
+import org.zalava.ModuleDescriptor;
 import org.zalava.ProviderFactory;
 import org.zalava.ZalavaModule;
 import org.zalava.ZalavaServiceFactory;
@@ -32,18 +32,40 @@ public final class DockerSeaModule implements ZalavaModule {
 
   @Override
   public ModuleConfigurationDescriptor configuration() {
-    return new ModuleConfigurationDescriptor(Map.of("type", "object", "additionalProperties", false,
-        "properties", Map.of(
-            "services", Map.of("type", "object",
-                "additionalProperties", false, "required", List.of("engineEndpoint"), "properties", Map.of(
-                    "engineEndpoint", Map.of("type", "string", "minLength", 1),
-                    "commandTimeoutSeconds", Map.of("type", "integer", "minimum", 1))),
-            DockerProviderFactory.ID, Map.of("type", "object",
-            "additionalProperties", false, "required", List.of("engineEndpoint"), "properties", Map.of(
-                "engineEndpoint", Map.of("type", "string", "minLength", 1),
-                "writable", Map.of("type", "boolean", "default", false),
-                "manageExternalContainers", Map.of("type", "boolean", "default", false),
-                "allowPublicPorts", Map.of("type", "boolean", "default", false))))));
+    return new ModuleConfigurationDescriptor(
+        Map.of(
+            "type",
+            "object",
+            "additionalProperties",
+            false,
+            "properties",
+            Map.of(
+                "services",
+                Map.of(
+                    "type",
+                    "object",
+                    "additionalProperties",
+                    false,
+                    "required",
+                    List.of("engineEndpoint"),
+                    "properties",
+                    Map.of(
+                        "engineEndpoint", Map.of("type", "string", "minLength", 1),
+                        "commandTimeoutSeconds", Map.of("type", "integer", "minimum", 1))),
+                DockerProviderFactory.ID,
+                Map.of(
+                    "type",
+                    "object",
+                    "additionalProperties",
+                    false,
+                    "required",
+                    List.of("engineEndpoint"),
+                    "properties",
+                    Map.of(
+                        "engineEndpoint", Map.of("type", "string", "minLength", 1),
+                        "writable", Map.of("type", "boolean", "default", false),
+                        "manageExternalContainers", Map.of("type", "boolean", "default", false),
+                        "allowPublicPorts", Map.of("type", "boolean", "default", false))))));
   }
 
   @Override

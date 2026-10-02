@@ -8,6 +8,8 @@ buildscript {
 }
 
 plugins {
+    id 'jacoco'
+    id 'com.diffplug.spotless' version '7.2.1'
     id 'java-library'
     id 'maven-publish'
 }
@@ -310,4 +312,88 @@ tasks.withType(PublishToMavenRepository).configureEach {
             throw new GradleException('GitHub Packages publication requires GITHUB_ACTOR and ZALAVA_PUBLISH_TOKEN')
         }
     }
+}
+
+
+// Keep module quality gates aligned with the Zalava host.
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat('1.36.1')
+    }
+}
+
+jacoco {
+    toolVersion = '0.8.14'
+}
+
+tasks.named('test') {
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('test')
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.90
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.74
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('spotlessCheck')
+    dependsOn tasks.named('jacocoTestCoverageVerification')
+}
+
+
+// Unit tests exercise adapter failure paths separately from built-JAR acceptance.
+sourceSets {
+    unitTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    unitTestImplementation.extendsFrom testImplementation
+    unitTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+dependencies {
+    unitTestImplementation 'org.mockito:mockito-core:5.20.0'
+}
+tasks.register('unitTest', Test) {
+    group = 'verification'
+    description = 'Deterministic unit tests; built-JAR contract acceptance remains in test.'
+    testClassesDirs = sourceSets.unitTest.output.classesDirs
+    classpath = sourceSets.unitTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('test')
+}
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('unitTest')
+    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'))
+}
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('unitTest')
+    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'))
+}
+tasks.named('check') {
+    dependsOn tasks.named('unitTest')
 }

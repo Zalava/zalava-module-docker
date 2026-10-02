@@ -9,18 +9,17 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.zalava.InvocationContext;
 import org.zalava.ZalavaToolDescriptor;
 import org.zalava.testing.ConfigFixture;
 import org.zalava.testing.ModuleContractKit;
 import org.zalava.testing.ProviderFixture;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -28,7 +27,8 @@ import tools.jackson.databind.json.JsonMapper;
 class DockerContainerContractTest {
   private static final String MODULE = "zalava-module-docker";
   private static final String PROVIDER = "docker-containers";
-  private static final InvocationContext CONFIRMED = new InvocationContext("operator", true, Map.of());
+  private static final InvocationContext CONFIRMED =
+      new InvocationContext("operator", true, Map.of());
   private final JsonMapper json = JsonMapper.builder().build();
   private final List<String> requests = new CopyOnWriteArrayList<>();
   private ModuleContractKit kit;
@@ -41,8 +41,12 @@ class DockerContainerContractTest {
 
   @BeforeEach
   void setup() throws IOException {
-    kit = ModuleContractKit.load(Path.of(System.getProperty("module.artifact")), List.of(),
-        MODULE, System.getProperty("module.version"));
+    kit =
+        ModuleContractKit.load(
+            Path.of(System.getProperty("module.artifact")),
+            List.of(),
+            MODULE,
+            System.getProperty("module.version"));
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext("/", this::respond);
     server.start();
@@ -71,35 +75,57 @@ class DockerContainerContractTest {
       var inventory = providers.invoke(PROVIDER, "listContainers", args("{\"all\":true}"));
       assertThat(inventory.success()).isTrue();
       assertThat(inventory.content().toString()).contains("sample", "8080", "sea-user");
-      var detail = providers.invoke(PROVIDER, "inspectContainer", args("{\"container\":\"sample\"}"));
+      var detail =
+          providers.invoke(PROVIDER, "inspectContainer", args("{\"container\":\"sample\"}"));
       assertThat(detail.content().toString()).contains("sample", "8080").doesNotContain("SECRET");
       assertThat(requests).anyMatch(value -> value.contains("all=true") || value.contains("all=1"));
-      assertThatThrownBy(() -> providers.requireProvider(PROVIDER).callTool("stopContainer",
-          args("{\"container\":\"sample\"}"), CONFIRMED))
-          .isInstanceOf(UnsupportedOperationException.class).hasMessageContaining("read-only");
+      assertThatThrownBy(
+              () ->
+                  providers
+                      .requireProvider(PROVIDER)
+                      .callTool("stopContainer", args("{\"container\":\"sample\"}"), CONFIRMED))
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessageContaining("read-only");
     }
   }
 
   @Test
   void createsPublishesAndRunsLifecycleUsingResolvedContainerIds() {
     try (var providers = providers(true, false, false)) {
-      assertThat(providers.tools(PROVIDER).stream().filter(ZalavaToolDescriptor::sideEffecting)
-          .map(ZalavaToolDescriptor::name)).containsExactly("runContainer", "startContainer",
-              "stopContainer", "restartContainer", "removeContainer");
-      var result = providers.invoke(PROVIDER, "runContainer", args("""
+      assertThat(
+              providers.tools(PROVIDER).stream()
+                  .filter(ZalavaToolDescriptor::sideEffecting)
+                  .map(ZalavaToolDescriptor::name))
+          .containsExactly(
+              "runContainer",
+              "startContainer",
+              "stopContainer",
+              "restartContainer",
+              "removeContainer");
+      var result =
+          providers.invoke(
+              PROVIDER,
+              "runContainer",
+              args(
+                  """
           {"name":"sample","image":"nginx:alpine","ports":[
             {"containerPort":80,"hostPort":8080},
             {"containerPort":53,"hostPort":5353,"protocol":"udp"}]}
-          """), CONFIRMED);
+          """),
+              CONFIRMED);
       assertThat(result.content().toString()).contains("created-id", "started=true");
       assertThat(created.path("Image").asString()).isEqualTo("sha256:resolved");
-      assertThat(created.path("Labels").path("org.zalava.user.provider-id").asString()).isEqualTo(PROVIDER);
+      assertThat(created.path("Labels").path("org.zalava.user.provider-id").asString())
+          .isEqualTo(PROVIDER);
       var host = created.path("HostConfig");
-      assertThat(host.path("PortBindings").path("80/tcp").get(0).path("HostIp").asString()).isEqualTo("127.0.0.1");
-      assertThat(host.path("PortBindings").path("53/udp").get(0).path("HostPort").asString()).isEqualTo("5353");
+      assertThat(host.path("PortBindings").path("80/tcp").get(0).path("HostIp").asString())
+          .isEqualTo("127.0.0.1");
+      assertThat(host.path("PortBindings").path("53/udp").get(0).path("HostPort").asString())
+          .isEqualTo("5353");
       assertThat(host.path("Memory").asLong()).isEqualTo(512L * 1024 * 1024);
       assertThatThrownBy(() -> providers.invoke(PROVIDER, "removeContainer", target(), CONFIRMED))
-          .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Stop");
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("Stop");
       providers.invoke(PROVIDER, "restartContainer", target(), CONFIRMED);
       providers.invoke(PROVIDER, "stopContainer", target(), CONFIRMED);
       assertThat(running).isFalse();
@@ -116,16 +142,25 @@ class DockerContainerContractTest {
   @Test
   void rejectsUnconfirmedAndInvalidRequestsBeforeAnyEngineCalls() {
     try (var providers = providers(true, false, false)) {
-      assertThatThrownBy(() -> providers.requireProvider(PROVIDER).callTool("runContainer",
-          args("{\"name\":\"sample\",\"image\":\"nginx\"}"), InvocationContext.system()))
-          .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("confirmation");
-      for (String invalid : List.of(
-          "{\"name\":\"sea-managed\",\"image\":\"nginx\"}",
-          "{\"name\":\"sample\",\"image\":\"nginx\",\"privileged\":true}",
-          "{\"name\":\"sample\",\"image\":42}",
-          "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":70000,\"containerPort\":80}]}",
-          "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":8080,\"containerPort\":80,\"hostIp\":\"0.0.0.0\"}]}")) {
-        assertThatThrownBy(() -> providers.invoke(PROVIDER, "runContainer", args(invalid), CONFIRMED))
+      assertThatThrownBy(
+              () ->
+                  providers
+                      .requireProvider(PROVIDER)
+                      .callTool(
+                          "runContainer",
+                          args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                          InvocationContext.system()))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("confirmation");
+      for (String invalid :
+          List.of(
+              "{\"name\":\"sea-managed\",\"image\":\"nginx\"}",
+              "{\"name\":\"sample\",\"image\":\"nginx\",\"privileged\":true}",
+              "{\"name\":\"sample\",\"image\":42}",
+              "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":70000,\"containerPort\":80}]}",
+              "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":8080,\"containerPort\":80,\"hostIp\":\"0.0.0.0\"}]}")) {
+        assertThatThrownBy(
+                () -> providers.invoke(PROVIDER, "runContainer", args(invalid), CONFIRMED))
             .isInstanceOf(IllegalArgumentException.class);
       }
       assertThat(requests).isEmpty();
@@ -137,9 +172,11 @@ class DockerContainerContractTest {
     exists = true;
     labels = "{\"org.zalava.managed.service-id\":\"managed\"}";
     try (var providers = providers(true, true, true)) {
-      for (String operation : List.of("startContainer", "stopContainer", "restartContainer", "removeContainer")) {
+      for (String operation :
+          List.of("startContainer", "stopContainer", "restartContainer", "removeContainer")) {
         assertThatThrownBy(() -> providers.invoke(PROVIDER, operation, target(), CONFIRMED))
-            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("reconciler-owned");
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("reconciler-owned");
       }
     }
     assertThat(requests).allMatch(value -> value.startsWith("GET "));
@@ -151,7 +188,8 @@ class DockerContainerContractTest {
     labels = "{}";
     try (var providers = providers(true, false, false)) {
       assertThatThrownBy(() -> providers.invoke(PROVIDER, "startContainer", target(), CONFIRMED))
-          .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("manageExternalContainers");
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("manageExternalContainers");
       assertThat(requests).allMatch(value -> value.startsWith("GET "));
     }
     try (var providers = providers(true, true, false)) {
@@ -163,12 +201,24 @@ class DockerContainerContractTest {
   @Test
   void publicPublishingNeedsExplicitConfigurationAndRequest() {
     try (var providers = providers(true, false, true)) {
-      providers.invoke(PROVIDER, "runContainer", args("""
+      providers.invoke(
+          PROVIDER,
+          "runContainer",
+          args(
+              """
           {"name":"sample","image":"nginx","ports":[
             {"containerPort":80,"hostPort":8080,"hostIp":"0.0.0.0"}]}
-          """), CONFIRMED);
-      assertThat(created.path("HostConfig").path("PortBindings").path("80/tcp")
-          .get(0).path("HostIp").asString()).isEqualTo("0.0.0.0");
+          """),
+          CONFIRMED);
+      assertThat(
+              created
+                  .path("HostConfig")
+                  .path("PortBindings")
+                  .path("80/tcp")
+                  .get(0)
+                  .path("HostIp")
+                  .asString())
+          .isEqualTo("0.0.0.0");
     }
   }
 
@@ -176,15 +226,27 @@ class DockerContainerContractTest {
   void collisionDoesNotPullOrReplaceAndPartialStartFailureIdentifiesCreatedContainer() {
     exists = true;
     try (var providers = providers(true, false, false)) {
-      assertThatThrownBy(() -> providers.invoke(PROVIDER, "runContainer",
-          args("{\"name\":\"sample\",\"image\":\"nginx\"}"), CONFIRMED))
-          .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("already exists");
+      assertThatThrownBy(
+              () ->
+                  providers.invoke(
+                      PROVIDER,
+                      "runContainer",
+                      args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                      CONFIRMED))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("already exists");
       assertThat(requests).allMatch(value -> value.startsWith("GET "));
       exists = false;
       failStart = true;
-      assertThatThrownBy(() -> providers.invoke(PROVIDER, "runContainer",
-          args("{\"name\":\"sample\",\"image\":\"nginx\"}"), CONFIRMED))
-          .isInstanceOf(IllegalStateException.class).hasMessageContaining("created-id");
+      assertThatThrownBy(
+              () ->
+                  providers.invoke(
+                      PROVIDER,
+                      "runContainer",
+                      args("{\"name\":\"sample\",\"image\":\"nginx\"}"),
+                      CONFIRMED))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("created-id");
       assertThat(exists).isTrue();
       assertThat(running).isFalse();
     }
@@ -194,40 +256,73 @@ class DockerContainerContractTest {
   void logsAreBoundedAndDoNotFollow() {
     exists = true;
     try (var providers = providers(false, false, false)) {
-      var result = providers.invoke(PROVIDER, "containerLogs", args("{\"container\":\"sample\",\"lines\":1}"));
+      var result =
+          providers.invoke(
+              PROVIDER, "containerLogs", args("{\"container\":\"sample\",\"lines\":1}"));
       @SuppressWarnings("unchecked")
       var content = (Map<String, Object>) result.content();
       @SuppressWarnings("unchecked")
       var frames = (List<String>) content.get("frames");
       assertThat(frames).hasSize(1);
       assertThat(frames.getFirst()).hasSizeLessThanOrEqualTo(2000);
-      assertThat(requests).anyMatch(value -> value.contains("tail=1") && !value.contains("follow=true"));
+      assertThat(requests)
+          .anyMatch(value -> value.contains("tail=1") && !value.contains("follow=true"));
     }
   }
 
   private ProviderFixture providers(boolean writable, boolean external, boolean publicPorts) {
-    return kit.providers(ConfigFixture.empty().factoryConfiguration(MODULE, PROVIDER, Map.of(
-        "engineEndpoint", "tcp://127.0.0.1:" + server.getAddress().getPort(),
-        "writable", writable, "manageExternalContainers", external, "allowPublicPorts", publicPorts)));
+    return kit.providers(
+        ConfigFixture.empty()
+            .factoryConfiguration(
+                MODULE,
+                PROVIDER,
+                Map.of(
+                    "engineEndpoint",
+                    "tcp://127.0.0.1:" + server.getAddress().getPort(),
+                    "writable",
+                    writable,
+                    "manageExternalContainers",
+                    external,
+                    "allowPublicPorts",
+                    publicPorts)));
   }
 
-  private JsonNode target() { return args("{\"container\":\"sample\"}"); }
-  private JsonNode args(String value) { return json.readTree(value); }
+  private JsonNode target() {
+    return args("{\"container\":\"sample\"}");
+  }
+
+  private JsonNode args(String value) {
+    return json.readTree(value);
+  }
 
   private void respond(HttpExchange exchange) throws IOException {
     String path = exchange.getRequestURI().getPath().replaceFirst("^/v[0-9.]+", "");
     String method = exchange.getRequestMethod();
-    requests.add(method + " " + path + (exchange.getRequestURI().getRawQuery() == null
-        ? "" : "?" + exchange.getRequestURI().getRawQuery()));
+    requests.add(
+        method
+            + " "
+            + path
+            + (exchange.getRequestURI().getRawQuery() == null
+                ? ""
+                : "?" + exchange.getRequestURI().getRawQuery()));
     int status = 200;
     String body = "{}";
     if (path.equals("/containers/json")) {
-      body = "[{\"Id\":\"created-id\",\"Names\":[\"/sample\"],\"Image\":\"nginx\",\"State\":\"running\",\"Status\":\"Up\",\"Labels\":" + labels
-          + ",\"Ports\":[{\"IP\":\"127.0.0.1\",\"PrivatePort\":80,\"PublicPort\":8080,\"Type\":\"tcp\"}]}]";
+      body =
+          "[{\"Id\":\"created-id\",\"Names\":[\"/sample\"],\"Image\":\"nginx\",\"State\":\"running\",\"Status\":\"Up\",\"Labels\":"
+              + labels
+              + ",\"Ports\":[{\"IP\":\"127.0.0.1\",\"PrivatePort\":80,\"PublicPort\":8080,\"Type\":\"tcp\"}]}]";
     } else if (path.matches("/containers/[^/]+/json")) {
-      if (!exists) { status = 404; body = "{\"message\":\"not found\"}"; }
-      else body = "{\"Id\":\"created-id\",\"Name\":\"/sample\",\"Config\":{\"Image\":\"nginx\",\"Env\":[\"SECRET=hidden\"],\"Labels\":"
-          + labels + "},\"State\":{\"Running\":" + running + ",\"Status\":\"running\"},\"HostConfig\":{\"PortBindings\":{\"80/tcp\":[{\"HostIp\":\"127.0.0.1\",\"HostPort\":\"8080\"}]}}}";
+      if (!exists) {
+        status = 404;
+        body = "{\"message\":\"not found\"}";
+      } else
+        body =
+            "{\"Id\":\"created-id\",\"Name\":\"/sample\",\"Config\":{\"Image\":\"nginx\",\"Env\":[\"SECRET=hidden\"],\"Labels\":"
+                + labels
+                + "},\"State\":{\"Running\":"
+                + running
+                + ",\"Status\":\"running\"},\"HostConfig\":{\"PortBindings\":{\"80/tcp\":[{\"HostIp\":\"127.0.0.1\",\"HostPort\":\"8080\"}]}}}";
     } else if (path.equals("/images/create")) {
       body = "{\"status\":\"Download complete\"}\n";
     } else if (path.startsWith("/images/") && path.endsWith("/json")) {
@@ -238,8 +333,13 @@ class DockerContainerContractTest {
       status = 201;
       body = "{\"Id\":\"created-id\",\"Warnings\":[]}";
     } else if (path.endsWith("/start") || path.endsWith("/restart")) {
-      if (failStart) { status = 500; body = "{\"message\":\"port already allocated\"}"; }
-      else { running = true; status = 204; }
+      if (failStart) {
+        status = 500;
+        body = "{\"message\":\"port already allocated\"}";
+      } else {
+        running = true;
+        status = 204;
+      }
     } else if (path.endsWith("/stop")) {
       running = false;
       status = 204;
@@ -255,7 +355,10 @@ class DockerContainerContractTest {
       exchange.getResponseBody().write(bytes.array());
       exchange.close();
       return;
-    } else { status = 404; body = "{\"message\":\"unexpected endpoint\"}"; }
+    } else {
+      status = 404;
+      body = "{\"message\":\"unexpected endpoint\"}";
+    }
     exchange.getResponseHeaders().set("Content-Type", "application/json");
     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
     exchange.sendResponseHeaders(status, status == 204 ? -1 : bytes.length);

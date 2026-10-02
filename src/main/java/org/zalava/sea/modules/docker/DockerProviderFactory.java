@@ -17,8 +17,12 @@ final class DockerProviderFactory implements ProviderFactory {
 
   @Override
   public ProviderFactoryDescriptor descriptor() {
-    return new ProviderFactoryDescriptor(ID, DockerSeaModule.MODULE_ID, ID,
-        "Docker Containers", "User-requested Docker container management.");
+    return new ProviderFactoryDescriptor(
+        ID,
+        DockerSeaModule.MODULE_ID,
+        ID,
+        "Docker Containers",
+        "User-requested Docker container management.");
   }
 
   @Override
@@ -32,13 +36,20 @@ final class DockerProviderFactory implements ProviderFactory {
     boolean writable = flag(configuration, "writable");
     boolean external = flag(configuration, "manageExternalContainers");
     boolean publicPorts = flag(configuration, "allowPublicPorts");
-    var config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-        .withDockerHost(address.trim()).build();
-    var transport = new ApacheDockerHttpClient.Builder()
-        .dockerHost(config.getDockerHost()).sslConfig(config.getSSLConfig())
-        .connectionTimeout(Duration.ofSeconds(10)).responseTimeout(Duration.ofSeconds(30)).build();
-    return List.of(new DockerContainerProvider(
-        DockerClientImpl.getInstance(config, transport), writable, external, publicPorts));
+    var config =
+        DefaultDockerClientConfig.createDefaultConfigBuilder()
+            .withDockerHost(address.trim())
+            .build();
+    var transport =
+        new ApacheDockerHttpClient.Builder()
+            .dockerHost(config.getDockerHost())
+            .sslConfig(config.getSSLConfig())
+            .connectionTimeout(Duration.ofSeconds(10))
+            .responseTimeout(Duration.ofSeconds(30))
+            .build();
+    return List.of(
+        new DockerContainerProvider(
+            DockerClientImpl.getInstance(config, transport), writable, external, publicPorts));
   }
 
   private static boolean flag(Map<String, Object> configuration, String key) {
