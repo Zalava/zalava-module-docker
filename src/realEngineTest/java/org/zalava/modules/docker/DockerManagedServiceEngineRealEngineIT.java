@@ -23,7 +23,7 @@ import org.zalava.api.extensions.managed.ManagedServiceResourceGrant;
  */
 @Tag("docker-engine")
 class DockerManagedServiceEngineRealEngineIT {
-  private static final String SERVICE_ID = "sea-it-managed-engine";
+  private static final String SERVICE_ID = "zalava-it-managed-engine";
   private static final String DATA_IDENTITY = "data-it-1";
   // Digest-pinned so the engine test never drifts with mutable tags. The image must be
   // long-running by default: the lifecycle assertions require a container that stays up.
@@ -114,8 +114,8 @@ class DockerManagedServiceEngineRealEngineIT {
       new ForeignProbe().hold();
       assertThatThrownBy(() -> engine.remove(SERVICE_ID))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("No SEA-owned container");
-      // The foreign occupant must survive the refused removal; SEA never deletes outside its
+          .hasMessageContaining("No Zalava-owned container");
+      // The foreign occupant must survive the refused removal; Zalava never deletes outside its
       // ownership namespace.
       assertThat(new ForeignProbe().exists()).isTrue();
     } finally {
@@ -132,7 +132,9 @@ class DockerManagedServiceEngineRealEngineIT {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
-  /** Minimal foreign occupant created directly through docker-java, outside the SEA namespace. */
+  /**
+   * Minimal foreign occupant created directly through docker-java, outside the Zalava namespace.
+   */
   private static final class ForeignProbe {
     private final com.github.dockerjava.api.DockerClient docker =
         com.github.dockerjava.core.DockerClientImpl.getInstance(
@@ -183,7 +185,7 @@ class DockerManagedServiceEngineRealEngineIT {
       // already stopped or never created
     }
     try {
-      // Contract v2: engine-owned removal under the deterministic SEA name.
+      // Contract v2: engine-owned removal under the deterministic Zalava name.
       engine.remove(SERVICE_ID);
     } catch (RuntimeException ignored) {
       // never created or not owned

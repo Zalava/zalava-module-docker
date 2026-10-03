@@ -26,7 +26,7 @@ import org.zalava.api.ZalavaToolDescriptor;
 import org.zalava.api.ZalavaToolInputSchemas;
 import tools.jackson.databind.JsonNode;
 
-/** Explicit user operations; never changes containers controlled by SEA's reconciler. */
+/** Explicit user operations; never changes containers controlled by Zalava's reconciler. */
 final class DockerContainerProvider implements ZalavaProvider {
   static final String OWNER_LABEL = "org.zalava.user.provider-id";
   private static final Set<String> MUTATIONS =
@@ -49,11 +49,11 @@ final class DockerContainerProvider implements ZalavaProvider {
   public ProviderDescriptor descriptor() {
     return new ProviderDescriptor(
         DockerProviderFactory.ID,
-        DockerSeaModule.MODULE_ID,
+        DockerZalavaModule.MODULE_ID,
         DockerProviderFactory.ID,
         "Docker Containers",
         "List Docker containers, inspect published ports, and manage user-requested services.",
-        DockerSeaModule.version(),
+        DockerZalavaModule.version(),
         capabilities(),
         List.of("docker"),
         Map.of(
@@ -262,9 +262,9 @@ final class DockerContainerProvider implements ZalavaProvider {
   private Object run(JsonNode arguments) {
     fields(arguments, Set.of("name", "image", "ports"));
     String name = text(arguments, "name", 128);
-    if (!name.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]*") || name.startsWith("sea-")) {
+    if (!name.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]*") || name.startsWith("zalava-")) {
       throw new IllegalArgumentException(
-          "name must be a Docker name outside the reserved sea- namespace");
+          "name must be a Docker name outside the reserved zalava- namespace");
     }
     String image = text(arguments, "image", 512);
     if (image.chars().anyMatch(Character::isWhitespace))
@@ -344,11 +344,11 @@ final class DockerContainerProvider implements ZalavaProvider {
     fields(arguments, Set.of("container"));
     var container = docker.inspectContainerCmd(text(arguments, "container", 256)).exec();
     String owner = ownership(container.getConfig().getLabels());
-    if (owner.equals("sea-managed-service")) {
+    if (owner.equals("zalava-managed-service")) {
       throw new IllegalArgumentException(
-          "Use SEA managed-service lifecycle for reconciler-owned containers");
+          "Use Zalava managed-service lifecycle for reconciler-owned containers");
     }
-    if (!owner.equals("sea-user") && !manageExternal) {
+    if (!owner.equals("zalava-user") && !manageExternal) {
       throw new IllegalArgumentException(
           "External container mutations require manageExternalContainers configuration");
     }
@@ -413,9 +413,9 @@ final class DockerContainerProvider implements ZalavaProvider {
   private static String ownership(Map<String, String> labels) {
     if (labels == null) return "external";
     if (labels.keySet().stream().anyMatch(key -> key.startsWith("org.zalava.managed."))) {
-      return "sea-managed-service";
+      return "zalava-managed-service";
     }
-    return DockerProviderFactory.ID.equals(labels.get(OWNER_LABEL)) ? "sea-user" : "external";
+    return DockerProviderFactory.ID.equals(labels.get(OWNER_LABEL)) ? "zalava-user" : "external";
   }
 
   private static void fields(JsonNode arguments, Set<String> allowed) {

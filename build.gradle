@@ -36,7 +36,7 @@ if (releaseTag != null && metadataVersion != releaseTag.substring(1)) {
 }
 version = releaseTag != null ? releaseTag.substring(1) : metadataVersion
 
-def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.6')
+def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.7')
 def moduleApiRepositoryUrl = providers.gradleProperty('moduleApiRepositoryUrl')
         .orElse('https://zalava.github.io/zalava-maven/')
 def githubPackagesActor = providers.gradleProperty('gpr.user')
@@ -147,7 +147,7 @@ processResources {
 }
 
 // Validates module-metadata.yaml and embeds it at the root of the installable
-// bundle and inside module.jar so SEA's local artifact upload can read it.
+// bundle and inside module.jar so Zalava's local artifact upload can read it.
 tasks.register('validateModuleMetadata') {
     inputs.file(moduleMetadataFile)
     doLast {
@@ -166,8 +166,8 @@ tasks.register('validateModuleMetadata') {
         if (module.version != project.version.toString()) {
             throw new GradleException("module-metadata.yaml version ${module.version} must match build version ${project.version}")
         }
-        if (!(module.compatibility instanceof Map) || !(module.compatibility.seaRuntime instanceof String)) {
-            throw new GradleException('module-metadata.yaml compatibility.seaRuntime is required')
+        if (!(module.compatibility instanceof Map) || !(module.compatibility.zalavaRuntime instanceof String)) {
+            throw new GradleException('module-metadata.yaml compatibility.zalavaRuntime is required')
         }
         if (!(module.configurationSchema instanceof Map)) {
             throw new GradleException('module-metadata.yaml configurationSchema is required')
@@ -189,7 +189,7 @@ tasks.named('jar') {
     from(moduleMetadataFile)
 }
 
-def bundleManifestDirectory = layout.buildDirectory.dir('generated/sea-module-bundle')
+def bundleManifestDirectory = layout.buildDirectory.dir('generated/zalava-module-bundle')
 
 tasks.register('bundleJar', Zip) {
     dependsOn tasks.named('jar')
@@ -206,7 +206,7 @@ tasks.register('bundleJar', Zip) {
         into 'lib'
     }
     from(bundleManifestDirectory) {
-        include 'META-INF/sea-module-bundle.yaml'
+        include 'META-INF/zalava-module-bundle.yaml'
     }
     from(moduleMetadataFile)
 
@@ -224,7 +224,7 @@ tasks.register('bundleJar', Zip) {
         runtime.each { file ->
             manifest.append("- path: lib/${file.name}\n  sha256: ${digest(file)}\n")
         }
-        def output = bundleManifestDirectory.get().file('META-INF/sea-module-bundle.yaml').asFile
+        def output = bundleManifestDirectory.get().file('META-INF/zalava-module-bundle.yaml').asFile
         output.parentFile.mkdirs()
         output.setText(manifest.toString(), 'UTF-8')
     }
@@ -248,7 +248,7 @@ tasks.register('verifyBundleArtifact') {
     doLast {
         def bundle = tasks.named('bundleJar').get().archiveFile.get().asFile
         def contents = zipTree(bundle)
-        def manifest = contents.matching { include 'META-INF/sea-module-bundle.yaml' }.singleFile.getText('UTF-8')
+        def manifest = contents.matching { include 'META-INF/zalava-module-bundle.yaml' }.singleFile.getText('UTF-8')
         if (manifest.contains('\\n') || !manifest.startsWith('module:\n') || !manifest.contains('\nruntime:\n')) {
             throw new GradleException('release bundle manifest must use real newlines')
         }
@@ -272,7 +272,7 @@ tasks.register('verifyBundleArtifact') {
             throw new GradleException('primary module JAR must contain the ZalavaModule service descriptor')
         }
         if (!zipTree(module).matching { include 'org/zalava/ZalavaModule.class' }.isEmpty()) {
-            throw new GradleException('primary module JAR must not include SEA module API classes')
+            throw new GradleException('primary module JAR must not include Zalava module API classes')
         }
     }
 }

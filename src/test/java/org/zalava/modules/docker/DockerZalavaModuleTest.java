@@ -19,9 +19,9 @@ import org.zalava.api.testing.ServiceFixture;
 /**
  * Exercises the real built module JAR at the stable {@code module-api} boundary through the
  * released contract kit. Host-owned resolution, validation, approval, persistence and transport
- * stay covered by SEA; the kit asserts only the module-owned service surface.
+ * stay covered by Zalava; the kit asserts only the module-owned service surface.
  */
-class DockerSeaModuleTest {
+class DockerZalavaModuleTest {
 
   private static final String MODULE_ID = "zalava-module-docker";
   private static final String SERVICE_ID = "managed-service-engine";

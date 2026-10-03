@@ -33,12 +33,12 @@ import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * First concrete engine implementation: Docker through the maintained docker-java Apache HttpClient
- * 5 transport. SEA owns the engine endpoint; the module never exposes the endpoint, socket
+ * 5 transport. Zalava owns the engine endpoint; the module never exposes the endpoint, socket
  * authority, or any imperative engine handle beyond this contract.
  */
 final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
-  /** Deterministic namespace separating SEA-owned resources from everything else on the host. */
+  /** Deterministic namespace separating Zalava-owned resources from everything else on the host. */
   static final String OWNER_LABEL_PREFIX = "org.zalava.";
 
   static final String OWNER_LABEL = OWNER_LABEL_PREFIX + "managed.owner-module-id";
@@ -54,7 +54,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
   private final DockerClient docker;
   private final Duration commandTimeout;
 
-  /** The endpoint must be explicit SEA configuration; it is never derived from module input. */
+  /** The endpoint must be explicit Zalava configuration; it is never derived from module input. */
   DockerManagedServiceEngine(String engineEndpoint, Duration commandTimeout) {
     if (engineEndpoint == null || engineEndpoint.isBlank()) {
       throw new IllegalArgumentException("A Docker engine endpoint must be configured");
@@ -119,10 +119,10 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
       Map<String, String> labels =
           occupant.getConfig() == null ? null : occupant.getConfig().getLabels();
       if (labels != null && serviceId.equals(labels.get(SERVICE_LABEL))) {
-        throw new IllegalStateException("SEA-owned container already exists: " + serviceId);
+        throw new IllegalStateException("Zalava-owned container already exists: " + serviceId);
       }
       throw new IllegalStateException(
-          "A foreign container occupies the deterministic SEA name: " + serviceId);
+          "A foreign container occupies the deterministic Zalava name: " + serviceId);
     }
     String imageReference = request.desiredState().artifactReference();
     // Digest-verified acquisition: the pull resolves the digest reference itself, and the concrete
@@ -285,7 +285,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
         .withPidsLimit((long) desired.limits().processLimit());
   }
 
-  /** Defensive re-check mirroring the SEA-owned path rules that validated the grant. */
+  /** Defensive re-check mirroring the Zalava-owned path rules that validated the grant. */
   private static void requireCanonicalPath(String value, String name) {
     if (value == null
         || !value.equals(java.nio.file.Path.of(value).normalize().toString())
@@ -321,7 +321,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
     Map<String, String> labels =
         inspect.getConfig() == null ? null : inspect.getConfig().getLabels();
     if (labels == null || !serviceId.equals(labels.get(SERVICE_LABEL))) {
-      // The name exists but was not created by this SEA-owned namespace: report absence so the
+      // The name exists but was not created by this Zalava-owned namespace: report absence so the
       // reconciler never operates on, restarts, or attaches to a foreign container.
       return null;
     }
@@ -330,7 +330,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
   private String requireOwnedContainerName(String serviceId) {
     if (findOwnedContainer(serviceId) == null) {
-      throw new IllegalArgumentException("No SEA-owned container: " + serviceId);
+      throw new IllegalArgumentException("No Zalava-owned container: " + serviceId);
     }
     return serviceId;
   }

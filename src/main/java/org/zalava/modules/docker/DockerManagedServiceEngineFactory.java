@@ -10,7 +10,7 @@ import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * Creates the Docker engine service from explicit module configuration only. The engine endpoint is
- * SEA administrator configuration; it is never derived from module input, caller requests, or
+ * Zalava administrator configuration; it is never derived from module input, caller requests, or
  * environment fallbacks.
  */
 final class DockerManagedServiceEngineFactory
@@ -24,7 +24,7 @@ final class DockerManagedServiceEngineFactory
   public ZalavaServiceDescriptor descriptor() {
     return new ZalavaServiceDescriptor(
         ManagedServiceEngine.CONTRACT.serviceId(),
-        DockerSeaModule.MODULE_ID,
+        DockerZalavaModule.MODULE_ID,
         ManagedServiceEngine.CONTRACT.contractVersion());
   }
 

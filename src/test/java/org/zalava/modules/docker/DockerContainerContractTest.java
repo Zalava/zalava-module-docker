@@ -23,7 +23,9 @@ import org.zalava.api.testing.ProviderFixture;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Built-JAR user-tool journeys against an HTTP Docker Engine fixture, not real-SEA acceptance. */
+/**
+ * Built-JAR user-tool journeys against an HTTP Docker Engine fixture, not real-Zalava acceptance.
+ */
 class DockerContainerContractTest {
   private static final String MODULE = "zalava-module-docker";
   private static final String PROVIDER = "docker-containers";
@@ -82,7 +84,7 @@ class DockerContainerContractTest {
                       new tools.jackson.core.type.TypeReference<
                           java.util.Map<String, Object>>() {}));
       assertThat(inventory.success()).isTrue();
-      assertThat(inventory.content().toString()).contains("sample", "8080", "sea-user");
+      assertThat(inventory.content().toString()).contains("sample", "8080", "zalava-user");
       var detail =
           providers.invoke(
               PROVIDER,
@@ -229,7 +231,7 @@ class DockerContainerContractTest {
           .hasMessageContaining("confirmation");
       for (String invalid :
           List.of(
-              "{\"name\":\"sea-managed\",\"image\":\"nginx\"}",
+              "{\"name\":\"zalava-managed\",\"image\":\"nginx\"}",
               "{\"name\":\"sample\",\"image\":\"nginx\",\"privileged\":true}",
               "{\"name\":\"sample\",\"image\":42}",
               "{\"name\":\"sample\",\"image\":\"nginx\",\"ports\":[{\"hostPort\":70000,\"containerPort\":80}]}",
