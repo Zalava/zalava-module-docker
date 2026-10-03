@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.zalava.api.extensions.managed.*;
 
 class ManagedEngineBoundaryTest {
-  private static final String ID = "sea-owned";
+  private static final String ID = "zalava-owned";
 
   @Test
   void isolatesForeignResourcesAndObservesReadiness() {

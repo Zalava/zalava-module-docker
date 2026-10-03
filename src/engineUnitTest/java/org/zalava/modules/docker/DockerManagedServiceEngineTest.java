@@ -22,12 +22,13 @@ import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
  * Engine-free coverage of the contract-v2 ownership boundary: removal must only ever address the
- * SEA-owned resource namespace, so a foreign or unknown occupant can never be deleted through the
- * engine. A mocked {@link DockerClient} records whether the destructive command was issued at all.
+ * Zalava-owned resource namespace, so a foreign or unknown occupant can never be deleted through
+ * the engine. A mocked {@link DockerClient} records whether the destructive command was issued at
+ * all.
  */
 class DockerManagedServiceEngineTest {
 
-  private static final String SERVICE_ID = "sea-managed-service";
+  private static final String SERVICE_ID = "zalava-managed-service";
 
   private DockerClient docker;
   private DockerManagedServiceEngine engine;
@@ -66,7 +67,7 @@ class DockerManagedServiceEngineTest {
 
     assertThatThrownBy(() -> engine.remove(SERVICE_ID))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("No SEA-owned container");
+        .hasMessageContaining("No Zalava-owned container");
     verify(docker, never()).removeContainerCmd(any());
   }
 

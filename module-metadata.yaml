@@ -3,7 +3,7 @@ modules:
   - moduleId: zalava-module-docker
     version: 0.1.0-alpha.3
     displayName: Docker Services
-    description: Bounded Docker Engine lifecycle for SEA-managed services and opt-in user-requested container management.
+    description: Bounded Docker Engine lifecycle for Zalava-managed services and opt-in user-requested container management.
     supportUrl: https://github.com/Zalava/zalava-module-docker
     artifact:
       groupId: org.zalava.modules
@@ -16,7 +16,7 @@ modules:
       command: ["./gradlew", "build"]
       verificationCommand: ["./gradlew", "test"]
     compatibility:
-      seaRuntime: ">=1.0.0 <2.0.0"
+      zalavaRuntime: ">=1.0.0 <2.0.0"
     configurationSchema:
       type: object
       additionalProperties: false
@@ -28,7 +28,7 @@ modules:
           properties:
             engineEndpoint:
               type: string
-              description: Explicit Docker engine endpoint owned by SEA, e.g. unix:///var/run/docker.sock
+              description: Explicit Docker engine endpoint owned by Zalava, e.g. unix:///var/run/docker.sock
             commandTimeoutSeconds:
               type: integer
               minimum: 1
@@ -39,7 +39,7 @@ modules:
           properties:
             engineEndpoint:
               type: string
-              description: Explicit Docker engine endpoint owned by SEA, e.g. unix:///var/run/docker.sock
+              description: Explicit Docker engine endpoint owned by Zalava, e.g. unix:///var/run/docker.sock
             writable: {type: boolean, default: false}
             manageExternalContainers: {type: boolean, default: false}
             allowPublicPorts: {type: boolean, default: false}

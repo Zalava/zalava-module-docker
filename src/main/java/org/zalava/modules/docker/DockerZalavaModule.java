@@ -12,7 +12,7 @@ import org.zalava.api.ZalavaModule;
 import org.zalava.api.ZalavaServiceFactory;
 
 /** Docker engine service and independently configured user-facing container tools. */
-public final class DockerSeaModule implements ZalavaModule {
+public final class DockerZalavaModule implements ZalavaModule {
 
   public static final String MODULE_ID = "zalava-module-docker";
 
@@ -75,7 +75,7 @@ public final class DockerSeaModule implements ZalavaModule {
 
   static String version() {
     Properties properties = new Properties();
-    try (InputStream input = DockerSeaModule.class.getResourceAsStream("/module.properties")) {
+    try (InputStream input = DockerZalavaModule.class.getResourceAsStream("/module.properties")) {
       if (input == null) {
         throw new IllegalStateException("Missing module version metadata");
       }

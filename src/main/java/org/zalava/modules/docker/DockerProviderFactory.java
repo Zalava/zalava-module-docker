@@ -19,7 +19,7 @@ final class DockerProviderFactory implements ProviderFactory {
   public ProviderFactoryDescriptor descriptor() {
     return new ProviderFactoryDescriptor(
         ID,
-        DockerSeaModule.MODULE_ID,
+        DockerZalavaModule.MODULE_ID,
         ID,
         "Docker Containers",
         "User-requested Docker container management.");
