@@ -1,14 +1,14 @@
 schemaVersion: 1
 modules:
   - moduleId: zalava-module-docker
-    version: 0.1.0-alpha.3
+    version: 0.1.0-alpha.4
     displayName: Docker Services
     description: Bounded Docker Engine lifecycle for Zalava-managed services and opt-in user-requested container management.
     supportUrl: https://github.com/Zalava/zalava-module-docker
     artifact:
       groupId: org.zalava.modules
       artifactId: zalava-module-docker
-      version: 0.1.0-alpha.3
+      version: 0.1.0-alpha.4
     source:
       repository: https://github.com/Zalava/zalava-module-docker.git
       license: Apache-2.0
