@@ -1,0 +1,71 @@
+name: Maintain module release index
+on:
+  workflow_call:
+  pull_request:
+    paths: ['releases/**', 'scripts/release_index.py', 'scripts/test_release_index.py', 'scripts/requirements.txt', '.github/workflows/release-index.yml']
+  push:
+    branches: [main]
+    paths: ['releases/**', 'scripts/**', '.github/workflows/release-index.yml']
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.event_name != 'release' && !startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r scripts/requirements.txt
+      - run: python -m unittest discover -s scripts -p test_release_index.py
+      - run: python scripts/release_index.py --verify
+  propose-index:
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r scripts/requirements.txt
+      - name: Bind the published artifact to its immutable source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          MODULE_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p /tmp/module-release
+          asset="${MODULE_REPOSITORY##*/}-${RELEASE_TAG#v}.jar"
+          gh release download "$RELEASE_TAG" --pattern "$asset" --dir /tmp/module-release
+          python scripts/release_index.py --artifact "/tmp/module-release/$asset" \
+            --tag "$RELEASE_TAG" --revision "$(git rev-parse "$RELEASE_TAG^{commit}")" \
+            --repository "https://github.com/$MODULE_REPOSITORY"
+          python -m unittest discover -s scripts -p test_release_index.py
+          python scripts/release_index.py --verify
+      - name: Open a reviewable release-index update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          if git diff --quiet -- releases/index.yaml; then exit 0; fi
+          branch="release-index/$RELEASE_TAG"
+          if gh pr list --head "$branch" --json number --jq 'length' | grep -qv '^0$'; then exit 0; fi
+          git switch -c "$branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add releases/index.yaml
+          git commit -m "Index immutable module release $RELEASE_TAG"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "Index module release $RELEASE_TAG" \
+            --body 'Adds the anonymously verified published artifact, permissions and immutable source to the module-owned release index. Review and merge this index update to expose the release through catalog discovery. The stable catalog needs no change.'

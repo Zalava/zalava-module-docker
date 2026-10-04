@@ -59,3 +59,11 @@ jobs:
           files: |
             build/libs/zalava-module-docker-*.jar
             build/zalava-module-docker.sha256
+
+  index-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: release
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/release-index.yml
