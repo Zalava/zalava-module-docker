@@ -31,6 +31,7 @@ modules:
             engineEndpoint:
               type: string
               minLength: 1
+              examples: ["unix:///var/run/docker.sock"]
               title: Docker connection for managed services
               description: Used to run approved services needed by modules, such as Home Assistant. Connecting grants Zalava powerful access to this Docker engine.
             commandTimeoutSeconds:
@@ -47,6 +48,7 @@ modules:
             engineEndpoint:
               type: string
               minLength: 1
+              examples: ["unix:///var/run/docker.sock"]
               title: Docker connection for container tools
               description: "Optional: enter an engine address to enable user-requested container tools. It can be the same engine as managed services. Viewing may expose container details and logs."
             writable: {type: boolean, default: false, title: Allow container tools to make changes, description: Enables requested container changes subject to confirmation. Managed services do not need this option.}

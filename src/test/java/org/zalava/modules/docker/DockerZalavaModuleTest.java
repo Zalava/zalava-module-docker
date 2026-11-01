@@ -111,6 +111,8 @@ class DockerZalavaModuleTest {
     var containerEndpoint = (Map<String, Object>) containerFields.get("engineEndpoint");
     assertThat(serviceEndpoint).containsEntry("title", "Docker connection for managed services");
     assertThat(containerEndpoint).containsEntry("title", "Docker connection for container tools");
+    assertThat(serviceEndpoint).containsEntry("examples", List.of("unix:///var/run/docker.sock"));
+    assertThat(containerEndpoint).containsEntry("examples", List.of("unix:///var/run/docker.sock"));
     assertThat(serviceEndpoint.get("description").toString()).contains("powerful access");
     assertThat(containerEndpoint.get("description").toString()).contains("logs");
   }
