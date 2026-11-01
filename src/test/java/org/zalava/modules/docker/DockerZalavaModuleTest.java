@@ -92,6 +92,30 @@ class DockerZalavaModuleTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void explainsTheSeparateDockerConnectionsInTheBuiltArtifact() {
+    var scopes = (Map<String, Object>) kit.module().configuration().jsonSchema().get("properties");
+    var services = (Map<String, Object>) scopes.get("services");
+    var containers = (Map<String, Object>) scopes.get("docker-containers");
+    assertThat(containers).doesNotContainKey("required");
+    assertThat(services).containsEntry("title", "Services used by Zalava modules");
+    assertThat(containers).containsEntry("title", "User-requested container tools");
+    var serviceFields = (Map<String, Object>) services.get("properties");
+    var containerFields = (Map<String, Object>) containers.get("properties");
+    assertThat(scopes.keySet()).containsExactly("services", "docker-containers");
+    assertThat(serviceFields.keySet()).containsExactly("engineEndpoint", "commandTimeoutSeconds");
+    assertThat(containerFields.keySet())
+        .containsExactly(
+            "engineEndpoint", "writable", "manageExternalContainers", "allowPublicPorts");
+    var serviceEndpoint = (Map<String, Object>) serviceFields.get("engineEndpoint");
+    var containerEndpoint = (Map<String, Object>) containerFields.get("engineEndpoint");
+    assertThat(serviceEndpoint).containsEntry("title", "Docker connection for managed services");
+    assertThat(containerEndpoint).containsEntry("title", "Docker connection for container tools");
+    assertThat(serviceEndpoint.get("description").toString()).contains("powerful access");
+    assertThat(containerEndpoint.get("description").toString()).contains("logs");
+  }
+
+  @Test
   void createsTheTypedEngineFromExplicitConfiguration() throws Exception {
     try (ServiceFixture services = kit.services(configuration())) {
       ManagedServiceEngine engine = services.service(ManagedServiceEngine.CONTRACT);
