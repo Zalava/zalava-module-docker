@@ -22,27 +22,36 @@ modules:
       additionalProperties: false
       properties:
         services:
+          title: Services used by Zalava modules
+          description: Run approved services that modules need, such as Home Assistant.
           type: object
           additionalProperties: false
           required: [engineEndpoint]
           properties:
             engineEndpoint:
               type: string
-              description: Explicit Docker engine endpoint owned by Zalava, e.g. unix:///var/run/docker.sock
+              minLength: 1
+              title: Docker connection for managed services
+              description: Used to run approved services needed by modules, such as Home Assistant. Connecting grants Zalava powerful access to this Docker engine.
             commandTimeoutSeconds:
               type: integer
               minimum: 1
+              title: Service operation timeout (seconds)
+              description: Leave blank to use 30 seconds.
         docker-containers:
+          title: User-requested container tools
+          description: Optional tools for viewing or managing containers. These are separate from managed services.
           type: object
           additionalProperties: false
-          required: [engineEndpoint]
           properties:
             engineEndpoint:
               type: string
-              description: Explicit Docker engine endpoint owned by Zalava, e.g. unix:///var/run/docker.sock
-            writable: {type: boolean, default: false}
-            manageExternalContainers: {type: boolean, default: false}
-            allowPublicPorts: {type: boolean, default: false}
+              minLength: 1
+              title: Docker connection for container tools
+              description: "Optional: enter an engine address to enable user-requested container tools. It can be the same engine as managed services. Viewing may expose container details and logs."
+            writable: {type: boolean, default: false, title: Allow container tools to make changes, description: Enables requested container changes subject to confirmation. Managed services do not need this option.}
+            manageExternalContainers: {type: boolean, default: false, title: Allow changes to other containers, description: Allows container tools to change containers not created by Zalava user requests.}
+            allowPublicPorts: {type: boolean, default: false, title: Allow container tools to expose ports publicly, description: Allows container tools to make ports accessible beyond this computer.}
     factories:
       - factoryId: services
         providerType: managed-service-engine

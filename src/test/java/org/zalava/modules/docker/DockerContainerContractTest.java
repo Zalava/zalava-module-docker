@@ -61,6 +61,17 @@ class DockerContainerContractTest {
   }
 
   @Test
+  void rejectsContainerOptionsWithoutAnEngineEndpoint() {
+    assertThatThrownBy(
+            () ->
+                kit.providers(
+                    ConfigFixture.empty()
+                        .factoryConfiguration(MODULE, PROVIDER, Map.of("writable", true))))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("engineEndpoint");
+  }
+
+  @Test
   void absentConfigurationDoesNotEnableUserTools() {
     try (var providers = kit.providers(ConfigFixture.empty())) {
       assertThat(providers.providers()).isEmpty();
