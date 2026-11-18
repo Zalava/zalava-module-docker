@@ -36,7 +36,7 @@ if (releaseTag != null && metadataVersion != releaseTag.substring(1)) {
 }
 version = releaseTag != null ? releaseTag.substring(1) : metadataVersion
 
-def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.7')
+def moduleApiVersion = providers.gradleProperty('moduleApiVersion').orElse('0.1.0-alpha.8')
 def moduleApiRepositoryUrl = providers.gradleProperty('moduleApiRepositoryUrl')
         .orElse('https://zalava.github.io/zalava-maven/')
 def githubPackagesActor = providers.gradleProperty('gpr.user')
@@ -388,12 +388,12 @@ tasks.register('unitTest', Test) {
     shouldRunAfter tasks.named('test')
 }
 tasks.named('jacocoTestReport') {
-    dependsOn tasks.named('unitTest')
-    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'))
+    dependsOn tasks.named('unitTest'), tasks.named('engineUnitTest')
+    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'), layout.buildDirectory.file('jacoco/engineUnitTest.exec'))
 }
 tasks.named('jacocoTestCoverageVerification') {
-    dependsOn tasks.named('unitTest')
-    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'))
+    dependsOn tasks.named('unitTest'), tasks.named('engineUnitTest')
+    executionData.setFrom(layout.buildDirectory.file('jacoco/test.exec'), layout.buildDirectory.file('jacoco/unitTest.exec'), layout.buildDirectory.file('jacoco/engineUnitTest.exec'))
 }
 tasks.named('check') {
     dependsOn tasks.named('unitTest')

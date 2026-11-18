@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.zalava.api.extensions.managed.ManagedServiceDesiredState;
 import org.zalava.api.extensions.managed.ManagedServiceEngine;
 import org.zalava.api.extensions.managed.ManagedServiceLifecycle;
@@ -34,7 +36,7 @@ class DockerManagedServiceEngineRealEngineIT {
     return new DockerManagedServiceEngine("unix:///var/run/docker.sock", Duration.ofSeconds(30));
   }
 
-  private static ManagedServiceEngine.Request request() {
+  private static ManagedServiceEngine.Request request(boolean isolated) {
     return new ManagedServiceEngine.Request(
         SERVICE_ID,
         new ManagedServiceDesiredState(
@@ -48,7 +50,8 @@ class DockerManagedServiceEngineRealEngineIT {
             Set.of(),
             new ManagedServiceLimits(200, 64L * 1024 * 1024, 16),
             Duration.ofSeconds(30),
-            3),
+            3,
+            isolated),
         new ManagedServiceResourceGrant(
             "home-module",
             Set.of(),
@@ -66,20 +69,23 @@ class DockerManagedServiceEngineRealEngineIT {
     engine().verifyEngineCompatibility();
   }
 
-  @Test
-  void runsTheFullLifecycleOnTheRealEngine() {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void runsTheFullLifecycleOnTheRealEngine(boolean isolated) {
     DockerManagedServiceEngine engine = engine();
     engine.verifyEngineCompatibility();
 
     try {
-      engine.create(request());
+      engine.create(request(isolated));
 
       ManagedServiceEngine.Observation created = engine.inspect(SERVICE_ID);
       assertThat(created.exists()).isTrue();
       assertThat(created.ownerModuleId()).isEqualTo("home-module");
       assertThat(created.dataIdentity()).isEqualTo(DATA_IDENTITY);
 
+      assertThat(engine.isNetworkIsolated(SERVICE_ID)).isEqualTo(isolated);
       engine.start(SERVICE_ID);
+      assertThat(engine.isNetworkIsolated(SERVICE_ID)).isEqualTo(isolated);
       ManagedServiceEngine.Observation running = engine.inspect(SERVICE_ID);
       assertThat(running.running()).isTrue();
       assertThat(running.ready()).isTrue(); // busybox sleep has no healthcheck.
@@ -99,7 +105,7 @@ class DockerManagedServiceEngineRealEngineIT {
     DockerManagedServiceEngine engine = engine();
     try {
       new ForeignProbe().hold();
-      assertThatThrownBy(() -> engine.create(request()))
+      assertThatThrownBy(() -> engine.create(request(false)))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("foreign");
     } finally {
