@@ -3,6 +3,35 @@
   "moduleId": "zalava-module-docker",
   "releases": [
     {
+      "version": "0.1.0-alpha.6",
+      "releaseTag": "v0.1.0-alpha.6",
+      "artifact": {
+        "groupId": "org.zalava.modules",
+        "artifactId": "zalava-module-docker",
+        "version": "0.1.0-alpha.6",
+        "sha256": "bdcb170fe09874fe60a40c515d75d9c75b3b265e1d721b6ce074d0bd0f164e11",
+        "type": "github-release-assets",
+        "repositoryUri": "https://github.com/Zalava/zalava-module-docker",
+        "releaseTag": "v0.1.0-alpha.6",
+        "assetName": "zalava-module-docker-0.1.0-alpha.6.jar"
+      },
+      "artifactBundle": true,
+      "source": {
+        "repository": "https://github.com/Zalava/zalava-module-docker.git",
+        "revision": "8b53cad51288e56dd27f6a9e089e894d3f8e42e2",
+        "license": "Apache-2.0"
+      },
+      "compatibility": {
+        "zalavaRuntime": ">=1.0.0 <2.0.0"
+      },
+      "security": {
+        "permissions": [
+          "docker-read",
+          "docker-manage"
+        ]
+      }
+    },
+    {
       "version": "0.1.0-alpha.5",
       "releaseTag": "v0.1.0-alpha.5",
       "artifact": {
