@@ -50,6 +50,7 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
   private static final int STOP_TIMEOUT_SECONDS = 10;
   private static final int MAX_LOG_LINES = 500;
   private static final int MAX_LOG_LINE_LENGTH = 2000;
+  private static final String ISOLATED_NETWORK = "none";
 
   private final DockerClient docker;
   private final Duration commandTimeout;
@@ -109,6 +110,25 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
     // ready, while an unhealthy or starting healthcheck keeps the service not ready.
     boolean ready = running && (health == null || "healthy".equals(health.getStatus()));
     return new Observation(true, running, ready, ownerOf(inspect), dataIdentityOf(inspect));
+  }
+
+  @Override
+  public boolean supportsNetworkIsolation() {
+    return true;
+  }
+
+  @Override
+  public boolean isNetworkIsolated(String serviceId) {
+    var container = findOwnedContainer(serviceId);
+    if (container == null
+        || container.getHostConfig() == null
+        || !ISOLATED_NETWORK.equals(container.getHostConfig().getNetworkMode())
+        || container.getNetworkSettings() == null
+        || container.getNetworkSettings().getNetworks() == null) {
+      return false;
+    }
+    return container.getNetworkSettings().getNetworks().keySet().stream()
+        .allMatch(ISOLATED_NETWORK::equals);
   }
 
   @Override
@@ -276,13 +296,15 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
                 })
             .toArray(Device[]::new);
 
-    return HostConfig.newHostConfig()
-        .withBinds(binds)
-        .withPortBindings(bindings)
-        .withDevices(grantedDevices)
-        .withNanoCPUs(desired.limits().cpuMillis() * 1_000_000L)
-        .withMemory(desired.limits().memoryBytes())
-        .withPidsLimit((long) desired.limits().processLimit());
+    HostConfig config =
+        HostConfig.newHostConfig()
+            .withBinds(binds)
+            .withPortBindings(bindings)
+            .withDevices(grantedDevices)
+            .withNanoCPUs(desired.limits().cpuMillis() * 1_000_000L)
+            .withMemory(desired.limits().memoryBytes())
+            .withPidsLimit((long) desired.limits().processLimit());
+    return desired.networkIsolated() ? config.withNetworkMode(ISOLATED_NETWORK) : config;
   }
 
   /** Defensive re-check mirroring the Zalava-owned path rules that validated the grant. */

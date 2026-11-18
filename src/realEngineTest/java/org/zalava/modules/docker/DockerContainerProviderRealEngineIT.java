@@ -8,11 +8,11 @@ import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.zalava.api.InvocationContext;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Real Engine proof for the user-facing provider; every created resource is removed in {@code
@@ -25,7 +25,6 @@ class DockerContainerProviderRealEngineIT {
   private static final String IMAGE =
       "redis@sha256:12da49daa000c2be4d55118574f889c8cc298140ecf343d04f345c818f227823";
   private static final InvocationContext CONFIRMED = new InvocationContext("test", true, Map.of());
-  private static final JsonMapper JSON = JsonMapper.builder().build();
 
   @Test
   void createsListsLogsStopsAndRemovesALoopbackPublishedContainer() throws Exception {
@@ -34,12 +33,13 @@ class DockerContainerProviderRealEngineIT {
         new DockerContainerProvider(client(), true, false, false)) {
       provider.callTool(
           "runContainer",
-          JSON.readTree(
-              """
-          {"name":"user-it-docker-provider","image":"%s","ports":[
-            {"containerPort":6379,"hostPort":16379,"hostIp":"127.0.0.1"}]}
-          """
-                  .formatted(IMAGE)),
+          Map.of(
+              "name",
+              NAME,
+              "image",
+              IMAGE,
+              "ports",
+              List.of(Map.of("containerPort", 6379, "hostPort", HOST_PORT, "hostIp", "127.0.0.1"))),
           CONFIRMED);
 
       try (DockerClient docker = client()) {
@@ -58,8 +58,7 @@ class DockerContainerProviderRealEngineIT {
       }
       assertThat(
               provider
-                  .callTool(
-                      "listContainers", JSON.readTree("{\"all\":true}"), InvocationContext.system())
+                  .callTool("listContainers", Map.of("all", true), InvocationContext.system())
                   .content()
                   .toString())
           .contains(NAME, "127.0.0.1");
@@ -67,27 +66,12 @@ class DockerContainerProviderRealEngineIT {
               provider
                   .callTool(
                       "containerLogs",
-                      JSON.readTree(
-                          """
-          {"container":"user-it-docker-provider","lines":1}
-          """),
+                      Map.of("container", NAME, "lines", 1),
                       InvocationContext.system())
                   .success())
           .isTrue();
-      provider.callTool(
-          "stopContainer",
-          JSON.readTree(
-              """
-          {"container":"user-it-docker-provider"}
-          """),
-          CONFIRMED);
-      provider.callTool(
-          "removeContainer",
-          JSON.readTree(
-              """
-          {"container":"user-it-docker-provider"}
-          """),
-          CONFIRMED);
+      provider.callTool("stopContainer", Map.of("container", NAME), CONFIRMED);
+      provider.callTool("removeContainer", Map.of("container", NAME), CONFIRMED);
       try (DockerClient docker = client()) {
         assertThat(
                 docker.listContainersCmd().withShowAll(true).exec().stream()
