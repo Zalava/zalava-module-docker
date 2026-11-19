@@ -14,6 +14,7 @@ import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.Ports;
+import com.github.dockerjava.api.model.StreamType;
 import com.github.dockerjava.api.model.Volume;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientConfig;
@@ -21,14 +22,20 @@ import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.core.command.PullImageResultCallback;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.github.dockerjava.transport.DockerHttpClient;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.SequenceInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.zalava.api.extensions.managed.ManagedOcrService;
 import org.zalava.api.extensions.managed.ManagedServiceEngine;
 
 /**
@@ -51,6 +58,9 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
   private static final int MAX_LOG_LINES = 500;
   private static final int MAX_LOG_LINE_LENGTH = 2000;
   private static final String ISOLATED_NETWORK = "none";
+  private static final String OCR_IMAGE_PREFIX = "ghcr.io/zalava/zalava-tika-ocr-worker@sha256:";
+  private static final int MAX_OCR_RESPONSE_BYTES = 601_025;
+  private static final Duration OCR_TIMEOUT = Duration.ofSeconds(25);
 
   private final DockerClient docker;
   private final Duration commandTimeout;
@@ -119,7 +129,10 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
 
   @Override
   public boolean isNetworkIsolated(String serviceId) {
-    var container = findOwnedContainer(serviceId);
+    return hasIsolatedNetwork(findOwnedContainer(serviceId));
+  }
+
+  private static boolean hasIsolatedNetwork(InspectContainerResponse container) {
     if (container == null
         || container.getHostConfig() == null
         || !ISOLATED_NETWORK.equals(container.getHostConfig().getNetworkMode())
@@ -129,6 +142,91 @@ final class DockerManagedServiceEngine implements ManagedServiceEngine {
     }
     return container.getNetworkSettings().getNetworks().keySet().stream()
         .allMatch(ISOLATED_NETWORK::equals);
+  }
+
+  @Override
+  public Optional<String> extractOcr(Request worker, ManagedOcrService.Request request) {
+    String reference = worker.desiredState().artifactReference();
+    if (!ManagedOcrService.SERVICE_ID.equals(worker.serviceId())
+        || !"zalava-module-tika".equals(worker.grant().moduleId())
+        || !worker.desiredState().networkIsolated()
+        || !reference.startsWith(OCR_IMAGE_PREFIX)) {
+      return Optional.empty();
+    }
+
+    try {
+      InspectContainerResponse container = findOwnedContainer(worker.serviceId());
+      if (!hasIsolatedNetwork(container)
+          || !worker.grant().moduleId().equals(ownerOf(container))
+          || !worker.ownedDataIdentity().equals(dataIdentityOf(container))
+          || !Boolean.TRUE.equals(container.getState().getRunning())
+          || container.getState().getHealth() == null
+          || !"healthy".equals(container.getState().getHealth().getStatus())
+          || !container.getImageId().equals(docker.inspectImageCmd(reference).exec().getId())) {
+        return Optional.empty();
+      }
+      return runOcr(container.getId(), request);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      return Optional.empty();
+    } catch (IOException | RuntimeException ex) {
+      return Optional.empty();
+    }
+  }
+
+  private Optional<String> runOcr(String containerId, ManagedOcrService.Request request)
+      throws InterruptedException, IOException {
+    byte[] document = request.document();
+    String header =
+        "{\"length\":%d,\"mediaType\":\"%s\",\"languages\":\"%s\"}\n"
+            .formatted(document.length, request.mediaType(), request.languages());
+    var input =
+        new SequenceInputStream(
+            new ByteArrayInputStream(header.getBytes(StandardCharsets.UTF_8)),
+            new ByteArrayInputStream(document));
+    String execId =
+        docker
+            .execCreateCmd(containerId)
+            .withAttachStdin(true)
+            .withAttachStdout(true)
+            .withCmd("python", "/app/managed_ocr.py")
+            .exec()
+            .getId();
+    try (var output = new OcrOutput()) {
+      boolean completed =
+          docker
+              .execStartCmd(execId)
+              .withStdIn(input)
+              .exec(output)
+              .awaitCompletion(OCR_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+      if (!completed
+          || !Long.valueOf(0).equals(docker.inspectExecCmd(execId).exec().getExitCodeLong())) {
+        return Optional.empty();
+      }
+      return output.result();
+    }
+  }
+
+  private static final class OcrOutput extends ResultCallback.Adapter<Frame> {
+    private final ByteArrayOutputStream response = new ByteArrayOutputStream();
+    private boolean overflow;
+
+    @Override
+    public void onNext(Frame frame) {
+      if (frame.getStreamType() != StreamType.STDOUT || overflow) return;
+      byte[] bytes = frame.getPayload();
+      if (bytes.length > MAX_OCR_RESPONSE_BYTES - response.size()) {
+        overflow = true;
+        return;
+      }
+      response.writeBytes(bytes);
+    }
+
+    Optional<String> result() {
+      return overflow || response.size() == 0
+          ? Optional.empty()
+          : Optional.of(response.toString(StandardCharsets.UTF_8));
+    }
   }
 
   @Override
